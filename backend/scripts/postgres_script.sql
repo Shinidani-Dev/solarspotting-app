@@ -1,4 +1,4 @@
--- PostgreSQL-Schema für das Sonnenflecken-Projekt der BFH HS 2025
+-- PostgreSQL-Schema für die SolarSpotting-App
 
 -- Tabelle für Benutzer
 CREATE TABLE IF NOT EXISTS s_user (
@@ -121,6 +121,10 @@ CREATE TABLE IF NOT EXISTS s_group_data (
     g_pos VARCHAR(6),
     day_data_id INTEGER NOT NULL,
     observation_id INTEGER NOT NULL,
+    rect_x_min INTEGER NOT NULL,
+    rect_y_min INTEGER NOT NULL,
+    rect_x_max INTEGER NOT NULL,
+    rect_y_max INTEGER NOT NULL,
     CONSTRAINT fk_day_data
         FOREIGN KEY (day_data_id)
         REFERENCES s_day_data (id)
