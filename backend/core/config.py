@@ -18,19 +18,19 @@ class Settings(BaseSettings):
 
     # JWT Settings
     SECRET_KEY: str
-    ALGORITHM: str
-    ACCESS_TOKEN_EXPIRE_MINUTES: int
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
     # Environment settings
-    ENVIRONMENT: str
-    DEBUG: bool
+    ENVIRONMENT: str = "development"
+    DEBUG: bool = True
 
     # Server Settings
-    HOST: str
-    PORT: int
+    HOST: str = "0.0.0.0"
+    PORT: int = 8000
 
     # CORS Settings
-    ALLOWED_ORIGINS: str
+    ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000"
     cors_origins: List[str] = []
 
     # Database connection
@@ -76,11 +76,6 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def validate_settings(self) -> "Settings":
         """Post-processing of settings after loading"""
-        # Create logs directory if it does not exist
-        log_dir = os.path.dirname(self.LOG_DIRNAME)
-        if log_dir and not os.path.exists(log_dir):
-            os.makedirs(log_dir, exist_ok=True)
-
         # Process CORS origins
         if isinstance(self.ALLOWED_ORIGINS, str):
             self.cors_origins = [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",")]

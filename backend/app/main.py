@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from backend.helpers.LoggingHelper import LoggingHelper
+from backend.core.config import settings
 
 LoggingHelper.initialize()
 
@@ -29,6 +30,8 @@ def main():
         # Use exception() within the except block
         LoggingHelper.exception(f"Division error: {str(e)}", module="main")
     LoggingHelper.log_request("POST", "solarspotting.app", 404, 3.3)
+    print(f"DB_URL =  {settings.DATABASE_URL}")
+    print(f"DB_URI = {settings.SQLALCHEMY_DATABASE_URI}")
 
 
 if __name__ == "__main__":
