@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS s_user (
     street VARCHAR(255) NOT NULL,
     postal_code VARCHAR(32) NOT NULL,
     city VARCHAR(255) NOT NULL,
-    state VARCHAR(64) NOT NULL,
+    state VARCHAR(64),
     country VARCHAR(2) NOT NULL,  -- 2-letter ISO Code for country
     phone VARCHAR(32),
     mobile VARCHAR(32),

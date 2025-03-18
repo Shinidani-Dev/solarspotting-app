@@ -1,6 +1,4 @@
-from typing import Annotated
-from fastapi import Depends
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy.orm import declarative_base
 
 from backend.core.config import settings
@@ -22,6 +20,7 @@ AsyncSessionLocal = async_sessionmaker(
 
 Base = declarative_base()
 
+
 async def get_db():
     async with AsyncSessionLocal() as session:
         LoggingHelper.debug("Database session created", module="db")
@@ -33,5 +32,3 @@ async def get_db():
 
 
 # TODO: Implement the init function using Alembic for future initialization of Tables if they don't exist.
-
-DB_DEPENDENCY = Annotated[AsyncSession, Depends(get_db)]
