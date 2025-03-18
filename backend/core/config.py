@@ -6,7 +6,6 @@ from pathlib import Path
 
 
 BACKEND_DIR = Path(__file__).parent.parent.absolute()
-LOG_DIR = os.path.join(BACKEND_DIR, "logs")
 ENV_FILE_PATH = os.path.join(BACKEND_DIR, ".env")
 
 
