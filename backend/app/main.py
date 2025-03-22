@@ -2,10 +2,13 @@ from fastapi import FastAPI
 from backend.helpers.LoggingHelper import LoggingHelper
 from backend.core.config import settings
 from backend.routers import auth
+from backend.app.middleware import setup_middlewares
 
 LoggingHelper.initialize()
 
 app = FastAPI()
+
+setup_middlewares(app)
 
 app.include_router(auth.router, prefix=settings.API_V1_STR)
 

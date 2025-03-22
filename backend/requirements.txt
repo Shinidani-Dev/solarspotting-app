@@ -44,3 +44,5 @@ ujson==5.10.0
 uvicorn==0.34.0
 watchfiles==1.0.4
 websockets==15.0
+hiredis==3.1.0
+redis==5.2.1
