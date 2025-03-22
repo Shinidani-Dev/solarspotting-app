@@ -81,7 +81,7 @@ class AuthHelper:
     def create_access_token(cls, data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
         """Create JWT Token for future authentication"""
         to_encode = data.copy()
-
+        LoggingHelper.info("Creating access token", module="TOKENIZER")
         if expires_delta:
             expire = datetime.now(timezone.utc) + expires_delta
         else:
@@ -90,6 +90,7 @@ class AuthHelper:
         to_encode.update({"exp": expire})
 
         encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
         return encoded_jwt
 
     @classmethod

@@ -3,10 +3,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 from backend.core.config import settings
-from backend.core.dependencies import DB_DEPENDENCY, CURRENT_USER, CURRENT_ACTIVE_USER
+from backend.core.dependencies import DB_DEPENDENCY, CURRENT_USER
 from backend.helpers.AuthenticationHelper import AuthHelper
 from backend.helpers.LoggingHelper import LoggingHelper
-from backend.models.UserModel import User
 from backend.schemas.UserSchemas import Token, UserResponse
 
 
