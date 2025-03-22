@@ -58,6 +58,7 @@ class Settings(BaseSettings):
     RATE_LIMIT_PER_MINUTE: int
 
     # Redis Cache
+    # TODO: use redis cache as soon as working with large data such as images to improve performance
     REDIS_URL: str
     CACHE_TIMEOUT: int
 
