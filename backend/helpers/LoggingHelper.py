@@ -104,8 +104,8 @@ class LoggingHelper:
             # Make sure the logs directory exists
             os.makedirs(LOGS_DIR, exist_ok=True)
             print(f"Created/verified logs directory: {LOGS_DIR}")
-        except Exception as e:
-            print(f"Error creating logs directory: {str(e)}")
+        except Exception as ex:
+            print(f"Error creating logs directory: {str(ex)}")
             return
 
         # ----- Set up log file path -----
@@ -156,8 +156,8 @@ class LoggingHelper:
             test_logger = logging.getLogger("LoggingHelper")
             test_logger.info("Log file test message")
             print("Test message written to log file")
-        except Exception as e:
-            print(f"Error setting up file handler: {str(e)}")
+        except Exception as ex:
+            print(f"Error setting up file handler: {str(ex)}")
             # Try to get more details about the file access
             try:
                 print(f"Log directory exists: {os.path.exists(os.path.dirname(log_file))}")

@@ -4,7 +4,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from backend.core.config import settings
 from backend.core.dependencies import DB_DEPENDENCY, CURRENT_USER
-from backend.helpers.AuthenticationHelper import AuthHelper
+from backend.helpers.AuthenticationHelper import authenticate_user, create_access_token
 from backend.helpers.LoggingHelper import LoggingHelper
 from backend.schemas.UserSchemas import Token, UserResponse
 
@@ -22,7 +22,7 @@ async def login_for_access_token(
 ):
     """Endpoint for obtaining JWT access token"""
 
-    user = await AuthHelper.authenticate_user(db, form_data.username, form_data.password)
+    user = await authenticate_user(db, form_data.username, form_data.password)
     if not user:
         LoggingHelper.warning(f"Authentication failed for user {form_data.username}", module="auth.api")
         raise HTTPException(
@@ -32,7 +32,7 @@ async def login_for_access_token(
         )
 
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = AuthHelper.create_access_token(
+    access_token = create_access_token(
         data={
             "sub": user.username,
             "id": user.id,

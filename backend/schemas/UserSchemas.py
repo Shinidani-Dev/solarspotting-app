@@ -1,40 +1,47 @@
 from datetime import date, datetime
 from typing import Optional, List
 from pydantic import BaseModel, EmailStr, Field, model_validator
+from backend.models.UserModel import User
 
 import re
 
 
 class UserBase(BaseModel):
     username: str = Field(..., min_length=3, max_length=64)
-    email: EmailStr
     firstname: str
     lastname: str
-
-
-class UserCreate(BaseModel):
-    password: str = Field(..., min_length=8)
+    email: EmailStr
     date_of_birth: date
     gender: str
-    company: Optional[str] = None
     street: str
     postal_code: str
     city: str
-    state: Optional[str] = None
     country: str = Field(..., min_length=2, max_length=2)
+
+    # Optional Fields
+    company: Optional[str] = None
+    state: Optional[str] = None
     phone: Optional[str] = None
     mobile: Optional[str] = None
 
-    @model_validator(mode="before")
-    def validate_fields(self, values):
+    @model_validator(mode="after")
+    def validate_gender(self):
         """Check if gender in Enum"""
-        gender = values.get("gender")
+        gender = self.gender
         allowed_genders = {"male", "female", "other"}
         if gender and gender.lower() not in allowed_genders:
             raise ValueError(f"Gender must be one of: {', '.join(allowed_genders)}")
 
+        return self
+
+
+class UserCreate(UserBase):
+    password: str = Field(..., min_length=8)
+
+    @model_validator(mode="after")
+    def validate_password(self):
         """Enforce strong password rules"""
-        password = values.get("password")
+        password = self.password
         if not password:
             raise ValueError("Password is required")
 
@@ -47,7 +54,7 @@ class UserCreate(BaseModel):
         if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
             raise ValueError("Password must contain at least one special character")
 
-        return values
+        return self
 
 
 class UserUpdate(BaseModel):
@@ -59,12 +66,27 @@ class UserUpdate(BaseModel):
     postal_code: Optional[str] = None
     city: Optional[str] = None
     state: Optional[str] = None
-    country: Optional[str] = None
+    country: str = Field(..., min_length=2, max_length=2)
     phone: Optional[str] = None
     mobile: Optional[str] = None
+    active: Optional[bool] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
+
+
+class AdminUserUpdate(BaseModel):
+    """Schema for admin-only user updates"""
+    role: Optional[str] = "user"
+    is_labeler: Optional[bool] = False
+    locked: Optional[bool] = False
+
+    @model_validator(mode="after")
+    def validate_role(self):
+        role = self.role
+        if role is not None and role not in ["user", "admin"]:
+            raise ValueError("Role must be 'user' or 'admin'")
+        return self
 
 
 class UserResponse(BaseModel):
@@ -84,6 +106,49 @@ class UserResponse(BaseModel):
 
     class Config:
         orm_mode = True
+        from_attributes = True
+
+    @classmethod
+    def from_user(cls, user: User) -> "UserResponse":
+        """Create a UserResponse from a User model instance"""
+        return cls(
+            id=user.id,
+            username=user.username,
+            email=user.email,
+            firstname=user.firstname,
+            lastname=user.lastname,
+            date_of_birth=user.date_of_birth,
+            gender=user.gender,
+            company=user.company,
+            country=user.country,
+            active=user.active,
+            role=user.role,
+            is_labeler=user.is_labeler,
+            tstamp=user.tstamp
+        )
+
+
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str = Field(..., min_length=8)
+
+    @model_validator(mode="after")
+    def validate_password(self):
+        """Enforce strong password rules"""
+        password = self.new_password
+        if not password:
+            raise ValueError("Password is required")
+
+        if not re.search(r"[A-Z]", password):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not re.search(r"[a-z]", password):
+            raise ValueError("Password must contain at least one lowercase letter")
+        if not re.search(r"\d", password):
+            raise ValueError("Password must contain at least one digit")
+        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
+            raise ValueError("Password must contain at least one special character")
+
+        return self
 
 
 class Token(BaseModel):
