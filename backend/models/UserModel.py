@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import timezone, datetime
 from sqlalchemy import Boolean, Column, Integer, String, Date, DateTime, CheckConstraint
 
 from backend.core.db import Base
@@ -14,7 +14,7 @@ class User(Base):
     )
 
     id = Column(Integer, primary_key=True, index=True)
-    tstamp = Column(DateTime, default=datetime.utcnow)
+    tstamp = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
     firstname = Column(String(255), nullable=False)
     lastname = Column(String(255), nullable=False)
     date_of_birth = Column(Date, nullable=False)

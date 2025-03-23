@@ -19,5 +19,5 @@ def setup_middlewares(app: FastAPI):
         allow_methods=["*"],
         allow_headers=["*"]
     )
-
-    app.add_middleware(RateLimitMiddleware)
+    if settings.USE_RATE_LIMITER:
+        app.add_middleware(RateLimitMiddleware)

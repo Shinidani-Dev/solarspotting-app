@@ -55,10 +55,10 @@ class Settings(BaseSettings):
     # Add here if needed
 
     # Rate Limiting
+    USE_RATE_LIMITER: bool = True
     RATE_LIMIT_PER_MINUTE: int
 
     # Redis Cache
-    # TODO: use redis cache as soon as working with large data such as images to improve performance
     REDIS_URL: str
     CACHE_TIMEOUT: int
 

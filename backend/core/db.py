@@ -1,5 +1,8 @@
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy.orm import declarative_base
+from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Annotated
+from fastapi import Depends
 
 from backend.core.config import settings
 from backend.helpers.LoggingHelper import LoggingHelper
