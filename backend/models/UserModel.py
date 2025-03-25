@@ -1,5 +1,6 @@
 from datetime import timezone, datetime
 from sqlalchemy import Boolean, Column, Integer, String, Date, DateTime, CheckConstraint
+from sqlalchemy.orm import relationship
 
 from backend.core.db import Base
 
@@ -35,6 +36,8 @@ class User(Base):
     locked = Column(Boolean, default=False)
     role = Column(String(10), nullable=False, default="user")
     is_labeler = Column(Boolean, default=False)
+
+    observer = relationship("Observer",  back_populates="user", uselist=False, cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<User {self.username}>"
