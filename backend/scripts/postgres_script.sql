@@ -28,11 +28,10 @@ CREATE TABLE IF NOT EXISTS s_user (
 
 -- Tabelle für Beobachter (erweitert einen Benutzer)
 CREATE TABLE IF NOT EXISTS s_observer (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL UNIQUE,
+    id INTEGER PRIMARY KEY,
     is_ai BOOLEAN DEFAULT FALSE,
     CONSTRAINT fk_user
-        FOREIGN KEY (user_id)
+        FOREIGN KEY (id)
         REFERENCES s_user (id)
         ON DELETE CASCADE
 );
@@ -41,8 +40,8 @@ CREATE TABLE IF NOT EXISTS s_observer (
 CREATE TABLE IF NOT EXISTS s_instrument (
     id SERIAL PRIMARY KEY,
     tstamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    i_id VARCHAR(255) NOT NULL,
-    i_type TEXT NOT NULL,
+    i_id VARCHAR(255),
+    i_type TEXT,
     i_aperture INTEGER,
     i_focal_length INTEGER,
     i_filter TEXT,

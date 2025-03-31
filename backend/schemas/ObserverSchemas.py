@@ -1,19 +1,21 @@
-from pydantic import BaseModel
-from typing import Optional, List
+from pydantic import BaseModel, Field
+from typing import Optional
 
 
-class ObserverCreate(BaseModel):
-    user_id: int
-    is_ai: Optional[bool] = False
+class ObserverBase(BaseModel):
+    is_ai: bool = False
 
 
-class ObserverUpdate(BaseModel):
+class ObserverCreate(ObserverBase):
+    pass
+
+
+class ObserverUpdate(ObserverBase):
     is_ai: Optional[bool] = None
 
 
 class ObserverResponse(BaseModel):
     id: int
-    user_id: int
     is_ai: bool
 
     class Config:

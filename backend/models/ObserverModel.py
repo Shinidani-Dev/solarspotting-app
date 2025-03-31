@@ -7,11 +7,13 @@ from backend.core.db import Base
 class Observer(Base):
     __tablename__ = "s_observer"
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("s_user.id"), nullable=False, unique=True)
+    # Primary key now matches the user ID
+    id = Column(Integer, ForeignKey("s_user.id", ondelete="CASCADE"), primary_key=True)
     is_ai = Column(Boolean, default=False)
 
-    # TODO: Uncomment when the other entities are implemented
-    user = relationship("User", back_populates="observer")
-    # instruments = relationship("Instrument", back_populates="observer")
+    # Relationship with User - now a one-to-one relationship
+    user = relationship("User", back_populates="observer", uselist=False)
+
+    # These relationships remain the same
+    instruments = relationship("Instrument", back_populates="observer")
     # observations = relationship("Observation", back_populates="observer")
