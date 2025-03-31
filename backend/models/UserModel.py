@@ -37,7 +37,7 @@ class User(Base):
     role = Column(String(10), nullable=False, default="user")
     is_labeler = Column(Boolean, default=False)
 
-    observer = relationship("Observer",  back_populates="user", uselist=False, cascade="all, delete-orphan")
+    observer = relationship("Observer", back_populates="user", uselist=False)
 
     def __repr__(self):
         return f"<User {self.username}>"
