@@ -17,9 +17,6 @@ async def create_instrument(
         db: DB_DEPENDENCY,
         usr: CURRENT_ACTIVE_USER
 ):
-    if inst.observer_id <= 0:
-        inst.observer_id = usr.id
-
     if usr.role != "admin" and inst.observer_id != usr.id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

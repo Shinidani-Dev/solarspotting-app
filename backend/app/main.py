@@ -1,7 +1,13 @@
 from fastapi import FastAPI
 from backend.helpers.LoggingHelper import LoggingHelper
 from backend.core.config import settings
-from backend.routers import auth, users, observers, instruments
+from backend.routers import (
+    auth,
+    users,
+    observers,
+    instruments,
+    observations
+)
 from backend.app.middleware import setup_middlewares
 
 LoggingHelper.initialize()
@@ -14,6 +20,7 @@ app.include_router(auth.router, prefix=settings.API_V1_STR)
 app.include_router(users.router, prefix=settings.API_V1_STR)
 app.include_router(observers.router, prefix=settings.API_V1_STR)
 app.include_router(instruments.router, prefix=settings.API_V1_STR)
+app.include_router(observations.router, prefix=settings.API_V1_STR)
 
 
 @app.get("/")

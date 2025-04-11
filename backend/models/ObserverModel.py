@@ -16,4 +16,4 @@ class Observer(Base):
 
     # These relationships remain the same
     instruments = relationship("Instrument", back_populates="observer")
-    # observations = relationship("Observation", back_populates="observer")
+    observations = relationship("Observation", back_populates="observer")
