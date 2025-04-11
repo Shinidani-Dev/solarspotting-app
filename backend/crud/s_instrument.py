@@ -71,15 +71,16 @@ async def get_filtered_instruments(
 
     Logger.info(f"executing query: {query}", module="crud/instrument")
     result = await db.execute(query)
-    return result.scalars().all()
+    instruments = list(result.scalars().all())
+    return instruments
 
 
 async def get_instruments_by_observer(db: AsyncSession, obs_id: int) -> List[Instrument]:
     query = select(Instrument).where(Instrument.observer_id == obs_id)
     Logger.info(f"executing query: {query}", module="crud/instrument")
     result = await db.execute(query)
-    return result.scalars().all()
-
+    instruments = list(result.scalars().all())
+    return instruments
 
 async def get_instrument_by_id(db: AsyncSession, instr_id: int) -> Optional[Instrument]:
     query = select(Instrument).where(Instrument.id == instr_id)

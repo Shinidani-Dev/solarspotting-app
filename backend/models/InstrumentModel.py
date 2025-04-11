@@ -24,3 +24,4 @@ class Instrument(Base):
 
     # Relationship with Observer
     observer = relationship("Observer", back_populates="instruments")
+    observations = relationship("Observation", back_populates="instrument")

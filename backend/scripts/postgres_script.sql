@@ -66,6 +66,10 @@ CREATE TABLE IF NOT EXISTS s_observation (
     verified BOOLEAN DEFAULT FALSE,
     observer_id INTEGER NOT NULL,
     instrument_id INTEGER NOT NULL,
+    created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    notes TEXT,
+    status VARCHAR(50) DEFAULT 'draft',
+    is_public BOOLEAN DEFAULT FALSE,
     CONSTRAINT fk_observer
         FOREIGN KEY (observer_id)
         REFERENCES s_observer (id)
