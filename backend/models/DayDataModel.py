@@ -32,9 +32,7 @@ class DayData(Base):
 
     # Relationships
     observation = relationship("Observation", back_populates="day_data")
-
-    # TODO: uncomment below when s_group_data is implemented
-    # group_data = relationship("GroupData", back_populates="day_data", cascade="all, delete-orphan")
+    group_data = relationship("GroupData", back_populates="day_data", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"DayData(id={self.id}, date={self.d_date}, observation_id={self.observation_id})"

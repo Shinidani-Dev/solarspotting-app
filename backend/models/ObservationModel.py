@@ -27,9 +27,7 @@ class Observation(Base):
     observer = relationship("Observer", back_populates="observations")
     instrument = relationship("Instrument", back_populates="observations")
     day_data = relationship("DayData", back_populates="observation", uselist=False, cascade="all, delete-orphan")
-
-    # TODO: uncomment below, as soon as groups is implemented
-    # sunspots = relationship("Sunspot", back_populates="observation", cascade="all, delete-orphan")
+    group_data = relationship("GroupData", back_populates="observation", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"Observation(id={self.id}, date={self.tstamp}, observer_id={self.observer_id})"
