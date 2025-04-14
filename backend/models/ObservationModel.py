@@ -26,6 +26,7 @@ class Observation(Base):
     # Relationships
     observer = relationship("Observer", back_populates="observations")
     instrument = relationship("Instrument", back_populates="observations")
+    day_data = relationship("DayData", back_populates="observation", uselist=False, cascade="all, delete-orphan")
 
     # TODO: uncomment below, as soon as groups is implemented
     # sunspots = relationship("Sunspot", back_populates="observation", cascade="all, delete-orphan")
