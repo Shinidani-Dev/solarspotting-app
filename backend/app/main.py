@@ -7,7 +7,8 @@ from backend.routers import (
     observers,
     instruments,
     observations,
-    day_data
+    day_data,
+    group_data
 )
 from backend.app.middleware import setup_middlewares
 
@@ -23,6 +24,7 @@ app.include_router(observers.router, prefix=settings.API_V1_STR)
 app.include_router(instruments.router, prefix=settings.API_V1_STR)
 app.include_router(observations.router, prefix=settings.API_V1_STR)
 app.include_router(day_data.router, prefix=settings.API_V1_STR)
+app.include_router(group_data.router, prefix=settings.API_V1_STR)
 
 
 @app.get("/")
