@@ -117,7 +117,7 @@ async def update_day_data(
         db: DB_DEPENDENCY,
         usr: CURRENT_ACTIVE_USER,
         day_data_update: DayDataUpdate,
-        day_data_id: int = Path(..., "The ID of the day data to update")
+        day_data_id: int = Path(..., description="The ID of the day data to update")
 ):
     """
     Endpoint for updating day data element. Can only be done by user, or a labeler user

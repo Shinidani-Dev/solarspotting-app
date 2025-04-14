@@ -124,10 +124,10 @@ CREATE TABLE IF NOT EXISTS s_group_data (
     g_pos VARCHAR(6),
     day_data_id INTEGER NOT NULL,
     observation_id INTEGER NOT NULL,
-    rect_x_min INTEGER NOT NULL,
-    rect_y_min INTEGER NOT NULL,
-    rect_x_max INTEGER NOT NULL,
-    rect_y_max INTEGER NOT NULL,
+    rect_x_min INTEGER,
+    rect_y_min INTEGER,
+    rect_x_max INTEGER,
+    rect_y_max INTEGER,
     CONSTRAINT fk_day_data
         FOREIGN KEY (day_data_id)
         REFERENCES s_day_data (id)
@@ -152,8 +152,8 @@ BEGIN
     END IF;
     
     IF NOT EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-                  WHERE c.relname = 'idx_s_observer_user_id' AND n.nspname = current_schema()) THEN
-        CREATE INDEX idx_s_observer_user_id ON s_observer(user_id);
+                  WHERE c.relname = 'idx_s_observer_id' AND n.nspname = current_schema()) THEN
+        CREATE INDEX idx_s_observer_id ON s_observer(id);
     END IF;
     
     IF NOT EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
