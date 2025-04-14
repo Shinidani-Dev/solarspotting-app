@@ -146,7 +146,7 @@ async def delete_instrument(
     if not success:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="error_msg or ""Failed to delete instrument"
+            detail="Failed to delete instrument"
         )
 
     return None
