@@ -10,12 +10,12 @@ class GroupDataBase(BaseModel):
     g_q: Optional[int] = None
     g_nr: Optional[int] = None
     g_f: Optional[int] = None
-    g_zpd: Optional[str] = None
+    g_zpd: Optional[str] = Field(None, max_length=3)
     g_p: Optional[int] = None
     g_s: Optional[int] = None
     g_sector: Optional[int] = None
     g_a: Optional[int] = None
-    g_pos: Optional[str] = None
+    g_pos: Optional[str] = Field(None, max_length=6)
     rect_x_min: Optional[int] = None
     rect_y_min: Optional[int] = None
     rect_x_max: Optional[int] = None
@@ -35,12 +35,12 @@ class GroupDataUpdate(BaseModel):
     g_q: Optional[int] = None
     g_nr: Optional[int] = None
     g_f: Optional[int] = None
-    g_zpd: Optional[str] = None
+    g_zpd: Optional[str] = Field(None, max_length=3)
     g_p: Optional[int] = None
     g_s: Optional[int] = None
     g_sector: Optional[int] = None
     g_a: Optional[int] = None
-    g_pos: Optional[str] = None
+    g_pos: Optional[str] = Field(None, max_length=6)
     rect_x_min: Optional[int] = None
     rect_y_min: Optional[int] = None
     rect_x_max: Optional[int] = None
