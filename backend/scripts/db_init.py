@@ -13,11 +13,11 @@ import argparse
 import psycopg2
 import logging
 from pathlib import Path
+from backend.core.config import settings
+from backend.helpers.LoggingHelper import LoggingHelper as logger
 
 # Add the project root to the Python path to allow imports
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-from backend.core.config import settings, logger
 
 
 def init_database(verbose=False, schema_path=None):
