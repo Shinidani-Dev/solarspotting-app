@@ -20,6 +20,10 @@ export function middleware(request) {
   
   // Token aus Cookies holen
   const token = request.cookies.get('auth_token')?.value;
+
+  if (request.nextUrl.pathname === '/') {
+    return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
   
   // Bei öffentlichen Pfaden immer Zugriff erlauben
   if (isPublicPath) {

@@ -1,20 +1,26 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { destroyCookie } from 'nookies';
 
 export default function LogoutPage() {
   const router = useRouter();
-
+  const [mounted, setMounted] = useState(false);
+  
   useEffect(() => {
-    // Auth-Token Cookie clientseitig löschen
+    setMounted(true);
+    // Cookie löschen
     destroyCookie(null, 'auth_token', { path: '/' });
-
-    // Nach dem Löschen auf /login weiterleiten
+    // Zur Login-Seite weiterleiten
     router.push('/login');
   }, [router]);
-
+  
+  // Verhindert Rendering vor Client-Hydration
+  if (!mounted) {
+    return null;
+  }
+  
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-900">
       <div className="text-center">

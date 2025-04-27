@@ -3,10 +3,21 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { useState, useEffect } from 'react';
 
 export default function AuthenticatedLayout({ children }) {
   const { user, logout } = useAuth();
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Verhindert Rendering vor Client-Hydration
+  if (!mounted) {
+    return null;
+  }
   
   // Navigation-Items
   const navigation = [
