@@ -1,10 +1,10 @@
 'use client';
 
-import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useState, useEffect } from 'react';
 import SidepanelNavItem from '@/components/ui/SidepanelNavItem';
+import { House, Sun, Telescope, UserRound, DoorOpen } from 'lucide-react';
 
 export default function AuthenticatedLayout({ children }) {
   const { user, logout } = useAuth();
@@ -22,10 +22,10 @@ export default function AuthenticatedLayout({ children }) {
   
   // Navigation-Items
   const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: '📊' },
-    { name: 'Instrumente', href: '/instruments', icon: '🔭' },
-    { name: 'Beobachtungen', href: '/observations', icon: '☀️' },
-    { name: 'Profil', href: '/profile', icon: '👤' },
+    { name: 'Dashboard', href: '/dashboard', Icon: House },
+    { name: 'Instrumente', href: '/instruments', Icon: Telescope },
+    { name: 'Beobachtungen', href: '/observations', Icon: Sun },
+    { name: 'Profil', href: '/profile', Icon: UserRound },
   ];
 
   return (
@@ -45,7 +45,7 @@ export default function AuthenticatedLayout({ children }) {
           <ul className="space-y-1">
             {navigation.map((item) => {
               const isActive = pathname === item.href;
-              return (SidepanelNavItem({itemName: item.name, link: item.href, icon: item.icon, isActive}));
+              return (SidepanelNavItem({itemName: item.name, link: item.href, Icon: item.Icon, isActive}));
             })}
           </ul>
         </nav>
@@ -55,7 +55,7 @@ export default function AuthenticatedLayout({ children }) {
             onClick={logout}
             className="flex w-full items-center px-4 py-2 text-slate-300 hover:bg-slate-700 hover:text-amber-300 rounded-md"
           >
-            <span className="mr-3">🚪</span>
+            <DoorOpen className="mr-3" size={18}/>
             Abmelden
           </button>
         </div>

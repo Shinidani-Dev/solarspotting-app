@@ -1,8 +1,11 @@
 'use client';
 
+import LinkButton from '@/components/ui/buttons/LinkButton';
 import { useAuth } from '@/hooks/useAuth';
-import Link from 'next/link';
 import { useState, useEffect } from 'react';
+import { Sun, Telescope } from 'lucide-react';
+import CardWrapper from '@/components/ui/cards/CardWrapper';
+import Card from '@/components/ui/cards/Card';
 
 export default function DashboardPage() {
   const { user, loading } = useAuth();
@@ -20,7 +23,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-900">
-        <p className="text-slate-300">Lädt...</p>
+        <p className="text-slate-300">Loading...</p>
       </div>
     );
   }
@@ -28,7 +31,7 @@ export default function DashboardPage() {
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-900">
-        <p className="text-slate-300">Nicht eingeloggt.</p>
+        <p className="text-slate-300">Not logged in!</p>
       </div>
     );
   }
@@ -38,33 +41,29 @@ export default function DashboardPage() {
       <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
 
       <div className="bg-slate-800 border border-slate-700 rounded-lg p-6 mb-6">
-        <h2 className="text-lg font-semibold mb-2">Willkommen zurück!</h2>
+        <h2 className="text-lg font-semibold mb-2">Welcome back!</h2>
         <div>
-          <p>Hallo {user.firstname} {user.lastname},</p>
-          <p className="mt-2">Deine Rolle: <span className="text-amber-400">{user.role}</span></p>
+          <p>Hello {user.firstname} {user.lastname},</p>
+          <p className="mt-2">Your role: <span className="text-amber-400">{user.role}</span></p>
           {user.is_labeler && (
-            <p className="mt-1">Du hast zusätzliche Rechte als Labeler.</p>
+            <p className="mt-1">You have additional access rights as <span className="text-amber-400">Labeler</span>.</p>
           )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-slate-800 border border-slate-700 rounded-lg p-6">
-          <h2 className="text-lg font-semibold mb-4">Deine Instrumente</h2>
-          <p className="text-slate-400">Verwalte deine Beobachtungsinstrumente</p>
-          <Link href="/instruments" className="inline-block px-4 py-2 mt-4 bg-amber-500 text-slate-900 hover:bg-amber-400 rounded-md font-medium">
-            Zu den Instrumenten
-          </Link>
-        </div>
+      <CardWrapper>
+        <Card>
+          <h2 className="text-lg font-semibold mb-4">Your Instruments</h2>
+          <p className="text-slate-400">Manage your Observationinstruments</p>
+          <LinkButton text="To the Instruments" link="/instruments" Icon={Telescope}/>
+        </Card>
 
-        <div className="bg-slate-800 border border-slate-700 rounded-lg p-6">
-          <h2 className="text-lg font-semibold mb-4">Deine Beobachtungen</h2>
-          <p className="text-slate-400">Erfasse und verwalte Sonnenbeobachtungen</p>
-          <Link href="/observations" className="inline-block px-4 py-2 mt-4 bg-amber-500 text-slate-900 hover:bg-amber-400 rounded-md font-medium">
-            Zu den Beobachtungen
-          </Link>
-        </div>
-      </div>
+        <Card>
+          <h2 className="text-lg font-semibold mb-4">Your Observations</h2>
+          <p className="text-slate-400">Create and manage your observations</p>
+          <LinkButton text="To the Observations" link="/observations" Icon={Sun}/>
+        </Card>
+      </CardWrapper>
     </div>
   );
 }
