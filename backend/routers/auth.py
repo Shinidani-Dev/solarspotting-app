@@ -82,18 +82,4 @@ async def read_user_me(user: CURRENT_USER):
 
     LoggingHelper.info(f"User authenticated: {user.username}")
 
-    return UserResponse(
-        id=user.id,
-        username=user.username,
-        email=user.email,
-        firstname=user.firstname,
-        lastname=user.lastname,
-        date_of_birth=user.date_of_birth,
-        gender=user.gender,
-        company=user.company,
-        country=user.country,
-        active=user.active,
-        role=user.role,
-        is_labeler=user.is_labeler,
-        tstamp=user.tstamp
-    )
+    return UserResponse.from_user(user)

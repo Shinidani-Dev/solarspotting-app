@@ -89,16 +89,8 @@ class AdminUserUpdate(BaseModel):
         return self
 
 
-class UserResponse(BaseModel):
+class UserResponse(UserBase):
     id: int
-    username: str
-    email: EmailStr
-    firstname: str
-    lastname: str
-    date_of_birth: date
-    gender: str
-    company: Optional[str] = None
-    country: str
     active: bool
     role: str
     is_labeler: bool
@@ -120,7 +112,13 @@ class UserResponse(BaseModel):
             date_of_birth=user.date_of_birth,
             gender=user.gender,
             company=user.company,
+            street=user.street,
+            postal_code=user.postal_code,
+            city=user.city,
+            state=user.state,
             country=user.country,
+            phone=user.phone,
+            mobile=user.mobile,
             active=user.active,
             role=user.role,
             is_labeler=user.is_labeler,
