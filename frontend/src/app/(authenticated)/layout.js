@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useState, useEffect } from 'react';
+import SidepanelNavItem from '@/components/ui/SidepanelNavItem';
 
 export default function AuthenticatedLayout({ children }) {
   const { user, logout } = useAuth();
@@ -44,21 +45,7 @@ export default function AuthenticatedLayout({ children }) {
           <ul className="space-y-1">
             {navigation.map((item) => {
               const isActive = pathname === item.href;
-              return (
-                <li key={item.name}>
-                  <Link 
-                    href={item.href}
-                    className={`flex items-center px-4 py-2 rounded-md ${
-                      isActive 
-                        ? 'bg-slate-700 text-amber-400' 
-                        : 'text-slate-300 hover:bg-slate-700 hover:text-amber-300'
-                    }`}
-                  >
-                    <span className="mr-3">{item.icon}</span>
-                    {item.name}
-                  </Link>
-                </li>
-              );
+              return (SidepanelNavItem({itemName: item.name, link: item.href, icon: item.icon, isActive}));
             })}
           </ul>
         </nav>
