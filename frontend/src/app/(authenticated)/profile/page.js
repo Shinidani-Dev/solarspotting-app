@@ -1,56 +1,29 @@
 'use client';
 
+import {useQuery} from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import { userService } from '@/api/apiServices';
 import Card from '@/components/ui/cards/Card';
 import Heading from '@/components/ui/texts/Heading';
+import LoadingIndicator from '@/components/ui/queryIndicators/LoadingIndicator';
+import ErrorIndicator from '@/components/ui/queryIndicators/ErrorIndicator';
+import { formatDate, formatDateTime } from '@/lib/helperFunctions';
 
 export default function ProfilePage() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { data, isPending, isError, error } = useQuery({
+    queryKey: ['user'],
+    queryFn: () => userService.getCurrentUser(),
+  });
 
-  useEffect(() => {
-    // Funktion zum Laden der Benutzerdaten
-    async function loadUserProfile() {
-      try {
-        setLoading(true);
-        const userData = await userService.getCurrentUser();
-        setUser(userData);
-        setError(null);
-      } catch (err) {
-        console.error('Fehler beim Laden des Profils:', err);
-        setError('Fehler beim Laden des Benutzerprofils');
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    // Aufruf der Funktion beim ersten Rendern
-    loadUserProfile();
-  }, []); // Leeres Dependency-Array bedeutet: Nur beim ersten Rendern ausführen
-
-  // Datum formatieren
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('de-DE');
-  };
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-[300px]">
-        <div className="w-12 h-12 border-t-2 border-b-2 rounded-full animate-spin border-amber-500"></div>
-      </div>
-    );
+  if (isPending) {
+    return <LoadingIndicator />;
   }
 
-  if (error) {
-    return (
-      <div className="p-4 border-l-4 border-red-500 rounded-md bg-red-500/10">
-        <p className="text-red-400">{error}</p>
-      </div>
-    );
+  if (isError) {
+    return <ErrorIndicator error={error.info?.message || "Failed to load user data"} />;
   }
+
+  const user = data;
 
   if (!user) {
     return (
@@ -163,7 +136,7 @@ export default function ProfilePage() {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="mb-4">
               <p className="text-sm text-slate-400">Konto erstellt am</p>
-              <p className="font-medium">{formatDate(user.tstamp)}</p>
+              <p className="font-medium">{formatDateTime(user.tstamp)}</p>
             </div>
             
             <div className="mb-4">

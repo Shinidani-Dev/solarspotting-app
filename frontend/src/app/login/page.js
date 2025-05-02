@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { setUserData } from '@/lib/auth';
+import { userService } from '@/api/apiServices';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -27,6 +29,8 @@ export default function LoginPage() {
     try {
       const result = await login(username, password);
       if (result.success) {
+        const userData = await userService.getCurrentUser();
+        setUserData(userData);
         router.push('/dashboard');
       } else {
         setError(result.message);
@@ -45,22 +49,22 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-900 p-4">
-      <div className="bg-slate-800 rounded-lg shadow-lg p-8 w-full max-w-md border border-slate-700">
-        <div className="text-center mb-8">
+    <div className="flex items-center justify-center min-h-screen p-4 bg-slate-900">
+      <div className="w-full max-w-md p-8 border rounded-lg shadow-lg bg-slate-800 border-slate-700">
+        <div className="mb-8 text-center">
           <h1 className="text-2xl font-bold text-amber-400">SolarSpotting</h1>
-          <p className="text-slate-400 mt-2">Melde dich an, um fortzufahren</p>
+          <p className="mt-2 text-slate-400">Melde dich an, um fortzufahren</p>
         </div>
         
         {error && (
-          <div className="bg-red-900/20 border-l-4 border-red-500 p-4 mb-6 rounded">
-            <p className="text-red-400 text-sm">{error}</p>
+          <div className="p-4 mb-6 border-l-4 border-red-500 rounded bg-red-900/20">
+            <p className="text-sm text-red-400">{error}</p>
           </div>
         )}
         
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
-            <label htmlFor="username" className="block text-sm font-medium text-slate-300 mb-1">
+            <label htmlFor="username" className="block mb-1 text-sm font-medium text-slate-300">
               Benutzername
             </label>
             <input
@@ -68,13 +72,13 @@ export default function LoginPage() {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="form-input bg-slate-700 border-slate-600 text-white"
+              className="text-white form-input bg-slate-700 border-slate-600"
               required
             />
           </div>
           
           <div className="mb-6">
-            <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-1">
+            <label htmlFor="password" className="block mb-1 text-sm font-medium text-slate-300">
               Passwort
             </label>
             <input
@@ -82,7 +86,7 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="form-input bg-slate-700 border-slate-600 text-white"
+              className="text-white form-input bg-slate-700 border-slate-600"
               required
             />
           </div>

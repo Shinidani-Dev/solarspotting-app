@@ -1,4 +1,5 @@
 import './globals.css';
+import QueryProviders from './providers';
 
 export const metadata = {
   title: 'SolarSpotting App',
@@ -8,8 +9,8 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="de">
-      <body className="bg-slate-900 text-slate-100 min-h-screen">
-        {children}
+      <body className="min-h-screen bg-slate-900 text-slate-100">
+        <QueryProviders>{children}</QueryProviders>
       </body>
     </html>
   );
