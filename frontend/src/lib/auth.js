@@ -43,3 +43,23 @@ export function getAuthToken() {
   const cookies = parseCookies();
   return cookies.auth_token;
 }
+
+export function setUserData(userData) {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('user', JSON.stringify(userData));
+  }
+}
+
+export function getUserData() {
+  if (typeof window !== 'undefined') {
+    const userData = localStorage.getItem('user');
+    return userData ? JSON.parse(userData) : null;
+  }
+  return null;
+}
+
+export function clearUserData() {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('user');
+  }
+}

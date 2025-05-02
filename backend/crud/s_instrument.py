@@ -55,7 +55,6 @@ async def get_filtered_instruments(
         serial_number: Optional serial number to filter by (partial match)
         skip: Number of records to skip
         limit: Maximum number of records to return
-
     Returns:
         List of instruments matching the criteria
     """
@@ -75,8 +74,8 @@ async def get_filtered_instruments(
     return instruments
 
 
-async def get_instruments_by_observer(db: AsyncSession, obs_id: int) -> List[Instrument]:
-    query = select(Instrument).where(Instrument.observer_id == obs_id)
+async def get_instruments_by_observer(db: AsyncSession, obs_id: int, skip: int = 0, limit: int = 100) -> List[Instrument]:
+    query = select(Instrument).where(Instrument.observer_id == obs_id).offset(skip).limit(limit)
     Logger.info(f"executing query: {query}", module="crud/instrument")
     result = await db.execute(query)
     instruments = list(result.scalars().all())
