@@ -37,7 +37,7 @@ async def create_instrument(
 @router.get("/", response_model=List[InstrumentResponse], status_code=status.HTTP_200_OK)
 async def get_isntruments(
         db: DB_DEPENDENCY,
-        usr: CURRENT_ACTIVE_USER,
+        usr: CURRENT_ADMIN_USER,
         observer_id: Optional[int] = Query(None, description="Filter by observer ID"),
         serial_number: Optional[str] = Query(None, description="Filter by serial number"),
         skip: Optional[int] = Query(0, description="Number of records to skip"),
@@ -50,6 +50,17 @@ async def get_isntruments(
         skip=skip,
         limit=limit
     )
+    return instruments
+
+
+@router.get("/my", response_model=List[InstrumentResponse], status_code=status.HTTP_200_OK)
+async def get_my_instruments(
+        db: DB_DEPENDENCY,
+        usr: CURRENT_ACTIVE_USER,
+        skip: Optional[int] = Query(0, description="Number of records to skip"),
+        limit: Optional[int] = Query(100, description="Maximum number of records to return")
+):
+    instruments = await s_instrument.get_instruments_by_observer(db, usr.id, skip, limit)
     return instruments
 
 

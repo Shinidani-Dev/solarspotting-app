@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { userService } from '@/api/apiServices';
 import Card from '@/components/ui/cards/Card';
+import Heading from '@/components/ui/texts/Heading';
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null);
@@ -60,9 +61,8 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <h1 className="mb-6 text-2xl font-bold">Dein Profil</h1>
-
+    <div>
+      <Heading>Your Profile</Heading>
       <div className="grid grid-cols-1 gap-6">
         <Card>
           <h2 className="mb-4 text-lg font-semibold">Persönliche Informationen</h2>

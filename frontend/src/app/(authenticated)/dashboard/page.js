@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { Sun, Telescope } from 'lucide-react';
 import CardWrapper from '@/components/ui/cards/CardWrapper';
 import Card from '@/components/ui/cards/Card';
+import Heading from '@/components/ui/texts/Heading';
 
 export default function DashboardPage() {
   const { user, loading } = useAuth();
@@ -22,7 +23,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900">
+      <div className="flex items-center justify-center min-h-screen bg-slate-900">
         <p className="text-slate-300">Loading...</p>
       </div>
     );
@@ -30,7 +31,7 @@ export default function DashboardPage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900">
+      <div className="flex items-center justify-center min-h-screen bg-slate-900">
         <p className="text-slate-300">Not logged in!</p>
       </div>
     );
@@ -38,10 +39,10 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
+      <Heading>Dashboard</Heading>
 
-      <div className="bg-slate-800 border border-slate-700 rounded-lg p-6 mb-6">
-        <h2 className="text-lg font-semibold mb-2">Welcome back!</h2>
+      <div className="p-6 mb-6 border rounded-lg bg-slate-800 border-slate-700">
+        <h2 className="mb-2 text-lg font-semibold">Welcome back!</h2>
         <div>
           <p>Hello {user.firstname} {user.lastname},</p>
           <p className="mt-2">Your role: <span className="text-amber-400">{user.role}</span></p>
@@ -53,13 +54,13 @@ export default function DashboardPage() {
 
       <CardWrapper>
         <Card>
-          <h2 className="text-lg font-semibold mb-4">Your Instruments</h2>
+          <h2 className="mb-4 text-lg font-semibold">Your Instruments</h2>
           <p className="text-slate-400">Manage your Observationinstruments</p>
           <LinkButton text="To the Instruments" link="/instruments" Icon={Telescope}/>
         </Card>
 
         <Card>
-          <h2 className="text-lg font-semibold mb-4">Your Observations</h2>
+          <h2 className="mb-4 text-lg font-semibold">Your Observations</h2>
           <p className="text-slate-400">Create and manage your observations</p>
           <LinkButton text="To the Observations" link="/observations" Icon={Sun}/>
         </Card>

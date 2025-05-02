@@ -47,6 +47,12 @@ export const observerService = {
 export const instrumentService = {
   // Get all instruments for the current user
   getMyInstruments: async () => {
+    const response = await apiClient.get('/instruments/my');
+    return response.data;
+  },
+
+  // Get all instruments (admin only)
+  getAllInstruments: async () => {
     const response = await apiClient.get('/instruments');
     return response.data;
   },
