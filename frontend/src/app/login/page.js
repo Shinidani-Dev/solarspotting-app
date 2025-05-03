@@ -36,7 +36,7 @@ export default function LoginPage() {
         setError(result.message);
       }
     } catch (err) {
-      setError('Ein unerwarteter Fehler ist aufgetreten.');
+      setError('An unexpected Error occured!');
       console.error(err);
     } finally {
       setIsLoading(false);
@@ -53,7 +53,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md p-8 border rounded-lg shadow-lg bg-slate-800 border-slate-700">
         <div className="mb-8 text-center">
           <h1 className="text-2xl font-bold text-amber-400">SolarSpotting</h1>
-          <p className="mt-2 text-slate-400">Melde dich an, um fortzufahren</p>
+          <p className="mt-2 text-slate-400">Log in to your account</p>
         </div>
         
         {error && (
