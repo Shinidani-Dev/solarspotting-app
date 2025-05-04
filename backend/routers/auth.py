@@ -69,7 +69,7 @@ async def refresh_access_token(db: DB_DEPENDENCY, user: CURRENT_USER):
         },
         expires_delta=access_token_expires
     )
-    LoggingHelper.inf(f"Token for user: {user.username} refreshed", module="auth.api")
+    LoggingHelper.info(f"Token for user: {user.username} refreshed", module="auth.api")
 
     return {"access_token": access_token, "token_type": "bearer"}
 

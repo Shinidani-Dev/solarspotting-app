@@ -84,12 +84,16 @@ async def create_detailed_observation(
             detail=error_msg
         )
 
-    # 2. Create day data with the observation ID
+    # 2. Create day data with the observation ID and sync the date
     from backend.schemas.DayDataSchemas import DayDataCreate
 
     # Convert from DetailedDayDataCreate to DayDataCreate
     day_data_dict = data.day_data.model_dump()
     day_data_dict["observation_id"] = observation.id  # Add observation_id to the dict
+
+    # IMPORTANT: Always sync the day_data date with the observation created date
+    day_data_dict["d_date"] = observation.created.date() if hasattr(observation.created,
+                                                                    'date') else observation.created
 
     day_data_create = DayDataCreate(**day_data_dict)
     day_data, error_msg = await s_day_data.create_day_data(db, day_data_create)
@@ -109,6 +113,10 @@ async def create_detailed_observation(
         group_dict = detailed_group.model_dump()
         group_dict["observation_id"] = observation.id
         group_dict["day_data_id"] = day_data.id
+
+        # IMPORTANT: Always sync the group_data date with the observation created date
+        group_dict["g_date"] = observation.created.date() if hasattr(observation.created,
+                                                                     'date') else observation.created
 
         group_create = GroupDataCreate(**group_dict)
         group, error_msg = await s_group_data.create_group_data(db, group_create)
@@ -143,7 +151,7 @@ async def update_detailed_observation(
             detail=f"Observation with id {observation_id} not found or you don't have permission"
         )
 
-    # Check for instrument change (need to use model_dump since instrument_id might not be directly accessible)
+    # Check for instrument change
     obs_dict = data.observation.model_dump(exclude_unset=True) if data.observation else {}
     if "instrument_id" in obs_dict:
         new_instrument_id = obs_dict["instrument_id"]
@@ -175,16 +183,40 @@ async def update_detailed_observation(
     existing_group_ids = {group.id for group in existing_groups}
 
     # 1. Update observation if provided
+    new_observation_date = None
     if data.observation:
+        # Check if created date is being updated
+        if 'created' in obs_dict:
+            new_observation_date = obs_dict['created']
+
         observation = await s_observation.update_observation(
             db, observation_id, usr.id, data.observation
         )
+
+        # After update, we need the actual date that was set
+        # (in case there were default values applied in the database)
+        if new_observation_date is None:
+            # Re-fetch the observation to get its current created date
+            observation = await s_observation.get_observation(db, observation_id, usr.id)
+            new_observation_date = observation.created
 
     # 2. Update day data if provided
     if data.day_data:
         from backend.schemas.DayDataSchemas import DayDataUpdate
         day_data_dict = data.day_data.model_dump(exclude_unset=True)
+
+        # Sync date with observation if the observation date was updated
+        if new_observation_date:
+            day_data_dict["d_date"] = new_observation_date.date() if hasattr(new_observation_date,
+                                                                             'date') else new_observation_date
+
         day_data_update = DayDataUpdate(**day_data_dict)
+        day_data = await s_day_data.update_day_data(db, day_data.id, day_data_update)
+    elif new_observation_date:
+        # If day_data wasn't updated but observation date changed, update just the date
+        from backend.schemas.DayDataSchemas import DayDataUpdate
+        day_date = new_observation_date.date() if hasattr(new_observation_date, 'date') else new_observation_date
+        day_data_update = DayDataUpdate(d_date=day_date)
         day_data = await s_day_data.update_day_data(db, day_data.id, day_data_update)
 
     # 3. Handle group data updates
@@ -204,6 +236,12 @@ async def update_detailed_observation(
             if detailed_group.id and detailed_group.id in existing_group_ids:
                 # Convert DetailedGroupDataUpdate to GroupDataUpdate
                 group_dict = detailed_group.model_dump(exclude_unset=True)
+
+                # Sync date with observation if the observation date was updated
+                if new_observation_date:
+                    group_dict["g_date"] = new_observation_date.date() if hasattr(new_observation_date,
+                                                                                  'date') else new_observation_date
+
                 group_update = GroupDataUpdate(**group_dict)
 
                 # Update existing group
@@ -214,6 +252,10 @@ async def update_detailed_observation(
                 group_dict = detailed_group.model_dump(exclude={"id"})
                 group_dict["observation_id"] = observation_id
                 group_dict["day_data_id"] = day_data.id
+
+                # Always use the observation date for new groups
+                group_dict["g_date"] = observation.created.date() if hasattr(observation.created,
+                                                                             'date') else observation.created
 
                 group_create = GroupDataCreate(**group_dict)
                 new_group, error_msg = await s_group_data.create_group_data(db, group_create)
@@ -230,8 +272,22 @@ async def update_detailed_observation(
             group_data_list = updated_groups
         else:
             group_data_list = await s_group_data.get_group_data_by_observation_id(db, observation_id)
+    elif new_observation_date:
+        # If group_data wasn't updated but observation date changed, update all group dates
+        from backend.schemas.GroupDataSchemas import GroupDataUpdate
+
+        # Update the date for all groups
+        group_date = new_observation_date.date() if hasattr(new_observation_date, 'date') else new_observation_date
+        updated_groups = []
+
+        for group in existing_groups:
+            group_update = GroupDataUpdate(g_date=group_date)
+            updated_group = await s_group_data.update_group_data(db, group.id, group_update)
+            updated_groups.append(updated_group)
+
+        group_data_list = updated_groups
     else:
-        # No group data updates, just get current group data
+        # No updates to group data or observation date
         group_data_list = existing_groups
 
     return {

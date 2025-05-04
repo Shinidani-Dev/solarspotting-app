@@ -8,6 +8,7 @@ from backend.models.DayDataModel import DayData
 from backend.models.ObservationModel import Observation
 from backend.schemas.DayDataSchemas import DayDataCreate, DayDataUpdate
 from backend.helpers.LoggingHelper import LoggingHelper as logger
+from backend.crud.s_observation import get_observation
 
 
 async def create_day_data(
@@ -18,24 +19,27 @@ async def create_day_data(
     Create a new day data entry and return it or return the error message on fail
     """
     try:
-        stmt = insert(DayData).values(
-            d_code=day_data.d_code,
-            d_date=day_data.d_date,
-            d_ut=day_data.d_ut,
-            d_q=day_data.d_q,
-            d_gruppen=day_data.d_gruppen,
-            d_flecken=day_data.d_flecken,
-            d_a=day_data.d_a,
-            d_b=day_data.d_b,
-            d_c=day_data.d_c,
-            d_d=day_data.d_d,
-            d_e=day_data.d_e,
-            d_f=day_data.d_f,
-            d_g=day_data.d_g,
-            d_h=day_data.d_h,
-            d_j=day_data.d_j,
-            observation_id=day_data.observation_id
-        ).returning(DayData)
+        # Try to get the observation to sync dates
+        observation = None
+        try:
+            stmt = select(Observation).where(Observation.id == day_data.observation_id)
+            result = await db.execute(stmt)
+            observation = result.scalars().first()
+        except Exception as e:
+            logger.warning(f"Failed to fetch observation: {e}", module="crud/day_data")
+
+        # Create values dict from the day_data
+        values = day_data.model_dump()
+
+        # If observation exists, always sync with observation created date
+        if observation:
+            # Convert to date object if it's a datetime
+            obs_date = observation.created.date() if hasattr(observation.created, 'date') else observation.created
+            values['d_date'] = obs_date
+            logger.info(f"Syncing day_data date with observation date: {obs_date}",
+                        module="crud/day_data")
+
+        stmt = insert(DayData).values(**values).returning(DayData)
 
         logger.info(f"executing statement: {stmt}", module="crud/day_data")
         result = await db.execute(stmt)

@@ -4,6 +4,7 @@ from sqlalchemy import select, insert, update, delete, and_, or_, between, func
 from sqlalchemy.exc import IntegrityError
 from typing import List, Optional, Dict, Any, Tuple
 
+from backend.models.ObservationModel import Observation
 from backend.models.GroupDataModel import GroupData
 from backend.schemas.GroupDataSchemas import GroupDataCreate, GroupDataUpdate, RectangleUpdate
 from backend.helpers.LoggingHelper import LoggingHelper as logger
@@ -14,26 +15,25 @@ async def create_group_data(db: AsyncSession, group_data: GroupDataCreate) -> Tu
     Create a new group data entry in the database
     """
     try:
-        stmt = insert(GroupData).values(
-            g_code=group_data.g_code,
-            g_date=group_data.g_date,
-            g_ut=group_data.g_ut,
-            g_q=group_data.g_q,
-            g_nr=group_data.g_nr,
-            g_f=group_data.g_f,
-            g_zpd=group_data.g_zpd,
-            g_p=group_data.g_p,
-            g_s=group_data.g_s,
-            g_sector=group_data.g_sector,
-            g_a=group_data.g_a,
-            g_pos=group_data.g_pos,
-            rect_x_min=group_data.rect_x_min,
-            rect_y_min=group_data.rect_y_min,
-            rect_x_max=group_data.rect_x_max,
-            rect_y_max=group_data.rect_y_max,
-            day_data_id=group_data.day_data_id,
-            observation_id=group_data.observation_id
-        ).returning(GroupData)
+        # Try to get the related observation to sync the date
+        observation = None
+        try:
+            stmt = select(Observation).where(Observation.id == group_data.observation_id)
+            result = await db.execute(stmt)
+            observation = result.scalars().first()
+        except Exception as e:
+            logger.warning(f"Failed to fetch observation: {e}", module="crud/group_data")
+
+        # Create values dict from the group_data
+        values = group_data.model_dump()
+
+        # If observation exists and g_date wasn't explicitly set or differs, sync with observation date
+        if observation and (not group_data.g_date or observation.created.date() != group_data.g_date):
+            values['g_date'] = observation.created.date()
+            logger.info(f"Syncing group_data date with observation date: {observation.created.date()}",
+                        module="crud/group_data")
+
+        stmt = insert(GroupData).values(**values).returning(GroupData)
 
         logger.info(f"executing statement: {stmt}", module="crud/group_data")
         result = await db.execute(stmt)
@@ -101,7 +101,25 @@ async def update_group_data(
     if not group_data:
         return None
 
+    # Try to get the related observation to sync the date
+    observation = None
+    try:
+        stmt = select(Observation).where(Observation.id == group_data.observation_id)
+        result = await db.execute(stmt)
+        observation = result.scalars().first()
+    except Exception as e:
+        logger.warning(f"Failed to fetch observation: {e}", module="crud/group_data")
+
     update_data = group_data_update.model_dump(exclude_unset=True)
+
+    # If observation exists and the date is being updated, sync with observation date
+    if observation and 'g_date' in update_data:
+        # Check if the group date differs from observation date
+        if observation.created.date() != update_data['g_date']:
+            update_data['g_date'] = observation.created.date()
+            logger.info(f"Syncing updated group_data date with observation date: {observation.created.date()}",
+                        module="crud/group_data")
+
     if update_data:
         stmt = (
             update(GroupData)
@@ -109,7 +127,7 @@ async def update_group_data(
             .values(**update_data)
             .returning(GroupData)
         )
-        logger.info(f"executing statement: {stmt}", model="crud/group_data")
+        logger.info(f"executing statement: {stmt}", module="crud/group_data")
         result = await db.execute(stmt)
         await db.commit()
         return result.scalars().first()

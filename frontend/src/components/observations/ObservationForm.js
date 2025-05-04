@@ -14,8 +14,9 @@ import {
   groupDataService,
 } from "@/api/apiServices";
 import { Trash2, Plus, Upload, Loader, FileText } from "lucide-react";
-import { formatDate } from "@/lib/helperFunctions";
+import { formatDate, formatDateForInput } from "@/lib/helperFunctions";
 import { getUserData } from "@/lib/auth";
+import apiClient from "@/api/apiClient";
 
 // Helper function to calculate day data from group data
 const calculateDayData = (groupData, totalGroups, totalSpots) => {
@@ -100,29 +101,45 @@ export default function ObservationForm({
   useEffect(() => {
     if (isEdit && observation) {
       console.log("Initializing form data with observation:", observation);
-      
+
+      const formattedDate = formatDateForInput(observation.created);
+
+      let dateString = "";
+      if (observation.created) {
+        // Create a date object
+        const date = new Date(observation.created);
+        // Get the UTC components
+        const year = date.getUTCFullYear();
+        const month = String(date.getUTCMonth() + 1).padStart(2, "0"); // Months are 0-indexed
+        const day = String(date.getUTCDate()).padStart(2, "0");
+        // Create the date string in YYYY-MM-DD format using UTC components
+        dateString = `${year}-${month}-${day}`;
+      } else {
+        dateString = getTodayDate();
+      }
+
       // Set observation data with ALL fields, being explicit about defaults
       setFormData({
         observer_id: observation.observer_id,
-        instrument_id: observation.instrument_id ? observation.instrument_id.toString() : '',
-        notes: observation.notes !== null ? observation.notes : '',
-        status: observation.status || 'draft',
+        instrument_id: observation.instrument_id
+          ? observation.instrument_id.toString()
+          : "",
+        notes: observation.notes !== null ? observation.notes : "",
+        status: observation.status || "draft",
         is_public: observation.is_public === true, // Explicit boolean conversion
-        sdo_image: observation.sdo_image || '',
-        daily_protocol: observation.daily_protocol || '',
+        sdo_image: observation.sdo_image || "",
+        daily_protocol: observation.daily_protocol || "",
         verified: observation.verified === true, // Explicit boolean conversion
-        created: observation.created 
-          ? new Date(observation.created).toISOString().split("T")[0] 
-          : getTodayDate()
+        created: formattedDate || getTodayDate(),
       });
-      
+
       console.log("Form data initialized with values:", {
         instrument_id: observation.instrument_id,
         is_public: observation.is_public,
         verified: observation.verified,
-        notes: observation.notes
+        notes: observation.notes,
       });
-      
+
       // Set image previews if available
       if (observation.sdo_image) {
         setSdoImagePreview(observation.sdo_image);
@@ -151,14 +168,46 @@ export default function ObservationForm({
     }
   }, [instruments, formData.instrument_id]);
 
+  // Update the instrument effect to respect existing selections
+  useEffect(() => {
+    // Only set a default instrument if:
+    // 1. We have instruments loaded AND
+    // 2. No instrument is currently selected AND
+    // 3. It's not an edit (or if it is an edit, the observation doesn't have an instrument_id)
+    const shouldSetDefaultInstrument =
+      instruments?.length > 0 &&
+      !formData.instrument_id &&
+      (!isEdit || (isEdit && !observation?.instrument_id));
+
+    if (shouldSetDefaultInstrument) {
+      console.log("Setting default instrument as none is selected");
+
+      // First try to find an instrument with in_use = true
+      const activeInstrument = instruments.find(
+        (instrument) => instrument.in_use === true
+      );
+
+      // If no active instrument found, use the first one
+      const defaultInstrument = activeInstrument || instruments[0];
+
+      setFormData((prev) => ({
+        ...prev,
+        instrument_id: defaultInstrument.id.toString(),
+      }));
+    }
+  }, [instruments, formData.instrument_id, isEdit, observation]);
+
   // Initialize day data if editing
   useEffect(() => {
     if (isEdit && dayData) {
+      const observationDate =
+        observation && observation.created
+          ? formatDateForInput(observation.created)
+          : getTodayDate();
+
       setDayDataState({
         d_code: dayData.d_code,
-        d_date: dayData.d_date
-          ? new Date(dayData.d_date).toISOString().split("T")[0]
-          : getTodayDate(),
+        d_date: observationDate,
         d_ut: dayData.d_ut || null,
         d_q: dayData.d_q || null,
         d_gruppen: dayData.d_gruppen || 0,
@@ -182,13 +231,16 @@ export default function ObservationForm({
   // Initialize group data if editing
   useEffect(() => {
     if (isEdit && groupData?.length > 0) {
+      const observationDate =
+        observation && observation.created
+          ? formatDateForInput(observation.created)
+          : getTodayDate();
+
       setGroupDataState(
         groupData.map((group) => ({
           id: group.id,
           g_code: group.g_code,
-          g_date: group.g_date
-            ? new Date(group.g_date).toISOString().split("T")[0]
-            : getTodayDate(),
+          g_date: observationDate,
           g_ut: group.g_ut || null,
           g_q: group.g_q || null,
           g_nr: group.g_nr || null,
@@ -234,6 +286,23 @@ export default function ObservationForm({
       // Error will be handled in try/catch
     },
   });
+
+  useEffect(() => {
+    if (groupDataState.length > 0) {
+      setGroupDataState(prev => 
+        prev.map(group => ({
+          ...group,
+          g_date: formData.created // Update to match the observation date
+        }))
+      );
+    }
+    
+    // Also update the day data date
+    setDayDataState(prev => ({
+      ...prev,
+      d_date: formData.created
+    }));
+  }, [formData.created, groupDataState.length]);
 
   // Individual mutations for edit mode
   const updateObservationMutation = useMutation({
@@ -296,7 +365,7 @@ export default function ObservationForm({
   const addGroupData = () => {
     const newGroup = {
       g_code: 1, // Default code
-      g_date: getTodayDate(),
+      g_date: formData.created,
       g_ut: null,
       g_q: null,
       g_nr: null,
@@ -411,6 +480,10 @@ export default function ObservationForm({
         throw new Error("User data is missing. Please try logging in again.");
       }
 
+      const formattedDate = formData.created
+        ? new Date(formData.created + "T12:00:00Z").toISOString()
+        : null;
+
       // Prepare submission data
       const submissionData = {
         observation: {
@@ -419,6 +492,7 @@ export default function ObservationForm({
           sdo_image: sdoImagePath,
           daily_protocol: dailyProtocolPath,
           instrument_id: parseInt(formData.instrument_id, 10),
+          created: formattedDate,
         },
         day_data: {
           ...dayDataState,
@@ -484,6 +558,10 @@ export default function ObservationForm({
         throw new Error("User data is missing. Please try logging in again.");
       }
 
+      const formattedDate = formData.created
+        ? new Date(formData.created + "T12:00:00Z").toISOString()
+        : null;
+
       // 1. Update observation data
       const observationData = {
         ...formData,
@@ -491,12 +569,10 @@ export default function ObservationForm({
         sdo_image: sdoImagePath,
         daily_protocol: dailyProtocolPath,
         instrument_id: parseInt(formData.instrument_id, 10),
+        created: formattedDate,
       };
 
-      await updateObservationMutation.mutateAsync({
-        id: observation.id,
-        data: observationData,
-      });
+      await apiClient.put(`/observations/${observation.id}`, observationData);
 
       // 2. Update day data
       const dayDataUpdateObj = {
@@ -668,7 +744,7 @@ export default function ObservationForm({
         observation,
         dayData,
         groupData,
-        groupDataLength: groupData?.length || 0
+        groupDataLength: groupData?.length || 0,
       });
     }
   }, [isEdit, observation, dayData, groupData]);
@@ -687,7 +763,6 @@ export default function ObservationForm({
   if (loadingInstruments) {
     return <LoadingIndicator />;
   }
-
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -1027,7 +1102,7 @@ export default function ObservationForm({
               </div>
 
               <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-                <FormField
+              <FormField
                   id={`group_${index}_code`}
                   name="g_code"
                   label="Code"
@@ -1043,10 +1118,11 @@ export default function ObservationForm({
                   name="g_date"
                   label="Date"
                   type="date"
-                  value={group.g_date || getTodayDate()}
-                  onChange={(e) =>
-                    handleGroupDataChange(index, "g_date", e.target.value)
-                  }
+                  value={formData.created} // Always use the observation's date
+                  readOnly={true} // Make it read-only
+                  disabled={true} // Also disable it to make it visually clear
+                  className="bg-slate-700/50" // Add some styling to indicate it's not editable
+                  onChange={() => {}} // Empty onChange since it's read-only
                 />
 
                 <FormField
@@ -1184,7 +1260,7 @@ export default function ObservationForm({
 
           <div>
             <p className="mb-1 text-xs text-slate-400">Date</p>
-            <p>{formatDate(dayDataState.d_date)}</p>
+            <p>{formatDate(formData.created)}</p>
           </div>
 
           <div>

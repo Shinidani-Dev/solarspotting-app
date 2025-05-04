@@ -5,6 +5,8 @@ from sqlalchemy.exc import IntegrityError
 from datetime import datetime
 from typing import List, Optional, Dict, Any, Tuple
 
+from backend.models.DayDataModel import DayData
+from backend.models.GroupDataModel import GroupData
 from backend.models.ObservationModel import Observation
 from backend.schemas.ObservationSchemas import ObservationCreate, ObservationUpdate, ObservationQuery, VerificationUpdate, PublicStatusUpdate
 from backend.helpers.LoggingHelper import LoggingHelper as logger
@@ -12,15 +14,21 @@ from backend.helpers.LoggingHelper import LoggingHelper as logger
 
 async def create_observation(db: AsyncSession, obs: ObservationCreate) -> Tuple[Optional[Observation], Optional[str]]:
     """
-    Create a new observation in the datagbase
+    Create a new observation in the database
     """
     try:
+        # Create a dictionary from the observation object
+        obs_dict = obs.model_dump()
+
+        # Check if created is in the request and use it if provided
+        created_date = obs_dict.get('created', datetime.now(timezone.utc))
+
         stmt = insert(Observation).values(
             observer_id=obs.observer_id,
             instrument_id=obs.instrument_id,
             notes=obs.notes,
             status=obs.status,
-            created=datetime.now(timezone.utc),
+            created=created_date,  # Use the provided date or default to now
             verified=False,
             is_public=obs.is_public or False
         ).returning(Observation)
@@ -112,6 +120,18 @@ async def update_observation(
         return None
 
     update_data = obs_update.model_dump(exclude_unset=True)
+
+    # Check if created date is being updated
+    date_updated = False
+    new_date = None
+
+    if 'created' in update_data and update_data['created'] != observation.created:
+        date_updated = True
+        new_date = update_data['created']
+        logger.info(f"Updating creation date for observation {observation_id} to {new_date}",
+                    module="crud/observation")
+
+    # Update the observation
     if update_data:
         stmt = (
             update(Observation)
@@ -122,7 +142,32 @@ async def update_observation(
         logger.info(f"executing statement: {stmt}", module="crud/observation")
         result = await db.execute(stmt)
         await db.commit()
-        return result.scalars().first()
+        updated_observation = result.scalars().first()
+
+        # If date was updated, update related day_data and group_data dates
+        if date_updated and new_date:
+            try:
+                # Update day_data date
+                await db.execute(
+                    update(DayData)
+                    .where(DayData.observation_id == observation_id)
+                    .values(d_date=new_date.date())
+                )
+
+                # Update group_data dates
+                await db.execute(
+                    update(GroupData)
+                    .where(GroupData.observation_id == observation_id)
+                    .values(g_date=new_date.date())
+                )
+
+                await db.commit()
+                logger.info(f"Updated dates for related day_data and group_data to {new_date.date()}",
+                            module="crud/observation")
+            except Exception as e:
+                logger.error(f"Failed to update related dates: {e}", module="crud/observation")
+
+        return updated_observation
 
     return observation
 
