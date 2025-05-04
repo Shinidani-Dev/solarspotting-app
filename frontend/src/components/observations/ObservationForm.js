@@ -289,18 +289,18 @@ export default function ObservationForm({
 
   useEffect(() => {
     if (groupDataState.length > 0) {
-      setGroupDataState(prev => 
-        prev.map(group => ({
+      setGroupDataState((prev) =>
+        prev.map((group) => ({
           ...group,
-          g_date: formData.created // Update to match the observation date
+          g_date: formData.created, // Update to match the observation date
         }))
       );
     }
-    
+
     // Also update the day data date
-    setDayDataState(prev => ({
+    setDayDataState((prev) => ({
       ...prev,
-      d_date: formData.created
+      d_date: formData.created,
     }));
   }, [formData.created, groupDataState.length]);
 
@@ -1086,7 +1086,7 @@ export default function ObservationForm({
           <h3 className="text-xl font-bold text-amber-400">Sunspot Groups</h3>
 
           {groupDataState.map((group, index) => (
-            <Card key={group.id || index}>
+            <Card key={group.id || `new-group-${index}`}>
               <div className="flex items-center justify-between mb-4">
                 <h4 className="text-lg font-semibold text-amber-400">
                   Group #{index + 1} {group.id ? `(ID: ${group.id})` : "(New)"}
@@ -1102,7 +1102,7 @@ export default function ObservationForm({
               </div>
 
               <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-              <FormField
+                <FormField
                   id={`group_${index}_code`}
                   name="g_code"
                   label="Code"
