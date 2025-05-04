@@ -97,7 +97,7 @@ export default function ObservationDetailPage() {
 
   return (
     <div>
-      <Heading level={1} color="primary" withAccent>
+      <Heading>
         Observation Details
       </Heading>
       

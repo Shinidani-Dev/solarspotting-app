@@ -78,7 +78,7 @@ export default function ObservationsPage() {
         
         <LinkButton 
           text="Create New Observation" 
-          link="/observations/new"
+          link="/observations/create"
           Icon={Plus}
           variant="primary"
         />

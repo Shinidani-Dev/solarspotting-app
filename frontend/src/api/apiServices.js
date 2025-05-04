@@ -86,6 +86,28 @@ export const instrumentService = {
 };
 
 /**
+ * File upload service
+ */
+export const fileService = {
+  // Upload a file and get back the file path
+  uploadFile: async (file, type) => {
+    if (!file) return null;
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('type', type); // 'sdo' or 'protocol'
+    
+    const response = await apiClient.post('/files/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    
+    return response.data.filePath;
+  }
+};
+
+/**
  * Observation-related API services
  */
 export const observationService = {
@@ -152,6 +174,11 @@ export const observationService = {
     const response = await apiClient.put(`/observation/detailed/${id}`, data);
     return response.data;
   },
+  
+  // Handle file upload for observations
+  uploadFile: async (file, type) => {
+    return fileService.uploadFile(file, type);
+  }
 };
 
 /**

@@ -9,9 +9,12 @@ from backend.routers import (
     observations,
     day_data,
     group_data,
-    detailed_observations
+    detailed_observations,
+    files
 )
 from backend.app.middleware import setup_middlewares
+from fastapi.staticfiles import StaticFiles
+
 
 LoggingHelper.initialize()
 
@@ -27,6 +30,9 @@ app.include_router(observations.router, prefix=settings.API_V1_STR)
 app.include_router(day_data.router, prefix=settings.API_V1_STR)
 app.include_router(group_data.router, prefix=settings.API_V1_STR)
 app.include_router(detailed_observations.router, prefix=settings.API_V1_STR)
+app.include_router(files.router, prefix=settings.API_V1_STR)
+
+app.mount("/storage", StaticFiles(directory=settings.STORAGE_PATH), name="storage")
 
 
 @app.get("/")
