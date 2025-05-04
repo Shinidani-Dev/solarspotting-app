@@ -65,7 +65,7 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
             <label htmlFor="username" className="block mb-1 text-sm font-medium text-slate-300">
-              Benutzername
+              Username
             </label>
             <input
               id="username"
@@ -98,7 +98,7 @@ export default function LoginPage() {
               isLoading ? 'opacity-70 cursor-not-allowed' : ''
             }`}
           >
-            {isLoading ? 'Anmeldung...' : 'Anmelden'}
+            {isLoading ? 'Logging in...' : 'Login'}
           </button>
         </form>
       </div>

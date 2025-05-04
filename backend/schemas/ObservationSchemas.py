@@ -13,7 +13,7 @@ class ObservationBase(BaseModel):
 
 
 class ObservationCreate(ObservationBase):
-    pass
+    created: Optional[datetime] = None
 
 
 class ObservationUpdate(BaseModel):
@@ -23,6 +23,7 @@ class ObservationUpdate(BaseModel):
     status: Optional[str] = None
     is_public: Optional[bool] = None
     verified: bool = False
+    created: Optional[datetime] = None
 
 
 class VerificationUpdate(BaseModel):

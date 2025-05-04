@@ -27,3 +27,31 @@ export const formatDate = (dateString) => {
       minute: '2-digit'
     });
   };
+
+/**
+ * Formats a date string for HTML date input fields, handling timezone differences
+ * @param {string} dateString - ISO date string from API
+ * @returns {string} - Date formatted as YYYY-MM-DD for input fields
+ */
+export const formatDateForInput = (dateString) => {
+  if (!dateString) return getTodayDate();
+  
+  // Create a date object that preserves the date value
+  const date = new Date(dateString);
+  
+  // Add timezone offset to compensate for local timezone
+  // This ensures you get the same date that was stored on the server
+  const timezoneOffset = date.getTimezoneOffset() * 60000; // convert to milliseconds
+  const adjustedDate = new Date(date.getTime() + timezoneOffset);
+  
+  // Return in YYYY-MM-DD format
+  return adjustedDate.toISOString().split('T')[0];
+};
+
+/**
+ * Gets today's date in YYYY-MM-DD format for input fields
+ * @returns {string} - Today's date formatted as YYYY-MM-DD
+ */
+export const getTodayDate = () => {
+  return new Date().toISOString().split("T")[0];
+};
