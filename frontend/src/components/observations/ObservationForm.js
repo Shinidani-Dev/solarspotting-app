@@ -912,7 +912,7 @@ export default function ObservationForm({
                   variant="outline"
                   size="sm"
                   className="mt-2"
-                  onClick={() => router.push("/instruments/new")}
+                  onClick={() => router.push("/instruments/create")}
                 >
                   Create Instrument
                 </Button>
