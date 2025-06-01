@@ -15,6 +15,7 @@ torch==2.2.2           # Updated for Python 3.12
 torchvision==0.17.2    # Updated to match torch version
 tqdm==4.66.1
 tensorboard==2.15.1
+ultralytics==8.0.196
 
 # Solar physics specialized tools (comment out for now - might have compatibility issues)
 # astropy==5.3.4

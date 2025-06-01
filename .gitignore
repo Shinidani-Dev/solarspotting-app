@@ -38,3 +38,11 @@ dist/
 # Ignore system files
 .DS_Store
 Thumbs.db
+
+# Ignore the storage folder and all ML folder
+storage
+runs
+weights
+
+# Ignore the pt (MLModel) files
+*.pt
