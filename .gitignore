@@ -1,6 +1,7 @@
 # Ignore Python virtual environments
 venv/
 backend/venv/
+machine_learning/venv
 
 # Ignore Python cache files
 __pycache__/

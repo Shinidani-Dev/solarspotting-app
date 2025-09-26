@@ -17,10 +17,12 @@ tqdm==4.66.1
 tensorboard==2.15.1
 ultralytics==8.0.196
 
-# Solar physics specialized tools (comment out for now - might have compatibility issues)
-# astropy==5.3.4
-# sunpy==5.1.0
-# reproject==0.13
+# Solar physics specialized tools
+astropy==6.1.4
+sunpy==6.0.3
+reproject==0.14.0
+imageio==2.36.0
+albumentations==1.4.18
 
 # Visualization tools
 seaborn==0.13.1
