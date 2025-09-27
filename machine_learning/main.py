@@ -1,9 +1,15 @@
+import matplotlib.pyplot as plt
+
 from pathlib import Path
+from astropy.utils.data import get_pkg_data_filename
+from astropy.io import fits
 
 import cv2
 from utils.image_processor import ImageProcessor
+from utils.solar_data_manager import SolarDataManager
 
 ML_FOLDER = Path(__file__).resolve().parent
+
 
 def main():
     # img = ImageProcessor.read_normal_image("machine_learning/data/img/normal/2k/20250407_080000_SDO_2048_00.jpg")
@@ -20,14 +26,33 @@ def main():
     # ImageProcessor.show_image(img, "RGB with circle", circles)
     # ImageProcessor.show_image(gray, "Gray with circle", circles)
 
-    img = ImageProcessor.read_normal_image("machine_learning/data/img/normal/4k/20250308_083000_Ic_flat_4k.jpg")
-    img_resized = ImageProcessor.resize_to_2k(img)
-    save_path = ML_FOLDER.joinpath("data", "img", "normal", "2k")
-    path_saved_img = ImageProcessor.save_image(img_resized, save_path, "20250308_083000_SDO_2048_00.jpg")
-    ImageProcessor.print_img_stats(img)
-    ImageProcessor.print_img_stats(img_resized)
+    # img = ImageProcessor.read_normal_image("machine_learning/data/img/normal/4k/20250308_083000_Ic_flat_4k.jpg")
+    # img_resized = ImageProcessor.resize_to_2k(img)
+    # save_path = ML_FOLDER.joinpath("data", "img", "normal", "2k")
+    # path_saved_img = ImageProcessor.save_image(img_resized, save_path, "20250308_083000_SDO_2048_00.jpg")
+    # ImageProcessor.print_img_stats(img)
+    # ImageProcessor.print_img_stats(img_resized)
 
+    # filename = get_pkg_data_filename("tutorials/FITS-images/HorseHead.fits")
+    # hdul = fits.open(filename)
+    # hdul.info()
+    #
+    # image_data = hdul[0].data
+    #
+    # hdul.close()
+    #
+    # plt.figure(figsize=(8, 8))
+    # plt.imshow(image_data, cmap="gray", origin="lower")
+    # plt.colorbar(label="Pixelwert")
+    # plt.title("Horsehead Nebula (FITS Beispiel)")
+    # plt.show()
 
+    SolarDataManager.test_path()
+    fits_files = SolarDataManager.fetch_hmi_continuum("2023-06-15", "12:30")
+
+    if fits_files:
+        img = ImageProcessor.read_fits_image(str(fits_files[0]))
+        ImageProcessor.show_image(img, title="Sonne HMI Continuum Fits Bild")
 
     # Process all images in folder data/img/normal/2k
     #
