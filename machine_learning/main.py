@@ -1,22 +1,42 @@
+from pathlib import Path
+
 import cv2
-import numpy as np
 from utils.image_processor import ImageProcessor
 
+ML_FOLDER = Path(__file__).resolve().parent
 
 def main():
-    img = ImageProcessor.read_normal_image("machine_learning/data/img/normal/2k/20140405_103000_SDO_2048_00.jpg")
-    circles = [ImageProcessor.detect_sun_disk(img)]
+    # img = ImageProcessor.read_normal_image("machine_learning/data/img/normal/2k/20250407_080000_SDO_2048_00.jpg")
+    # circles = [ImageProcessor.detect_sun_disk(img)]
+    #
+    # ImageProcessor.show_image(img, "RGB Image")
+    #
+    # gray = img
+    # if img.ndim == 3:
+    #     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    #
+    # ImageProcessor.show_image(gray, "Grayscale Image")
+    #
+    # ImageProcessor.show_image(img, "RGB with circle", circles)
+    # ImageProcessor.show_image(gray, "Gray with circle", circles)
 
-    ImageProcessor.show_image(img, "RGB Image")
+    img = ImageProcessor.read_normal_image("machine_learning/data/img/normal/4k/20250308_083000_Ic_flat_4k.jpg")
+    img_resized = ImageProcessor.resize_to_2k(img)
+    save_path = ML_FOLDER.joinpath("data", "img", "normal", "2k")
+    path_saved_img = ImageProcessor.save_image(img_resized, save_path, "20250308_083000_SDO_2048_00.jpg")
+    ImageProcessor.print_img_stats(img)
+    ImageProcessor.print_img_stats(img_resized)
 
-    gray = img
-    if img.ndim == 3:
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-    ImageProcessor.show_image(gray, "Grayscale Image")
 
-    ImageProcessor.show_image(img, "RGB with circle", circles)
-    ImageProcessor.show_image(gray, "Gray with circle", circles)
+    # Process all images in folder data/img/normal/2k
+    #
+    # circles = []
+    #
+    # img_folder = ML_FOLDER.joinpath("data", "img", "normal", "2k")
+    # for img_path in img_folder.iterdir():
+    #     img = ImageProcessor.read_normal_image(img_folder.joinpath(img_path))
+    #     circles.append(ImageProcessor.detect_sun_disk(img))
 
 
 if __name__ == "__main__":

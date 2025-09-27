@@ -47,3 +47,6 @@ weights
 
 # Ignore the pt (MLModel) files
 *.pt
+
+# Ignore data folder as it is used for testing purposes
+data/
