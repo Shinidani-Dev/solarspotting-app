@@ -3,7 +3,7 @@ from sunpy.net import Fido, attrs as a
 from datetime import datetime, timedelta
 
 ML_FOLDER = Path(__file__).resolve().parent.parent
-RAW_FOLDER = ML_FOLDER.joinpath("data", "img", "normal", "raw")
+RAW_FOLDER = ML_FOLDER.joinpath("data", "img", "raw")
 
 
 class SolarDataManager:
@@ -24,12 +24,13 @@ class SolarDataManager:
         import astropy.units as u
 
         start = datetime.fromisoformat(f"{date} {time}")
-        end = start + timedelta(minutes=1)
+        end = start + timedelta(minutes=15)
 
         result = Fido.search(
-            a.Time(start, end),
-            a.Instrument("AIA"),
-            a.Wavelength(171*u.angstrom)
+            a.Time("2025-04-01 00:00", "2025-05-14 23:59"),
+            a.Instrument("HMI"),
+            a.Physobs("continuum"),
+            a.Sample(10 * u.minute)  # alle 10 Minuten ein Bild
         )
 
         if len(result) == 0:

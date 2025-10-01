@@ -12,20 +12,26 @@ ML_FOLDER = Path(__file__).resolve().parent
 
 
 def main():
-    # img = ImageProcessor.read_normal_image("machine_learning/data/img/normal/2k/20250407_080000_SDO_2048_00.jpg")
-    # circles = [ImageProcessor.detect_sun_disk(img)]
-    #
-    # ImageProcessor.show_image(img, "RGB Image")
-    #
-    # gray = img
-    # if img.ndim == 3:
-    #     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    #
-    # ImageProcessor.show_image(gray, "Grayscale Image")
-    #
-    # ImageProcessor.show_image(img, "RGB with circle", circles)
-    # ImageProcessor.show_image(gray, "Gray with circle", circles)
+    # ==============================================
+    # = Example read jpg and find disk             =
+    # ==============================================
+    img = ImageProcessor.read_normal_image("machine_learning/data/img/normal/2k/20250407_080000_SDO_2048_00.jpg")
+    circles = [ImageProcessor.detect_sun_disk(img)]
 
+    ImageProcessor.show_image(img, "RGB Image")
+
+    gray = img
+    if img.ndim == 3:
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    ImageProcessor.show_image(gray, "Grayscale Image")
+
+    ImageProcessor.show_image(img, "RGB with circle", circles)
+    ImageProcessor.show_image(gray, "Gray with circle", circles)
+
+    # ==============================================
+    # = Example resizing 4k to 2k and saving jpg   =
+    # ==============================================
     # img = ImageProcessor.read_normal_image("machine_learning/data/img/normal/4k/20250308_083000_Ic_flat_4k.jpg")
     # img_resized = ImageProcessor.resize_to_2k(img)
     # save_path = ML_FOLDER.joinpath("data", "img", "normal", "2k")
@@ -33,6 +39,9 @@ def main():
     # ImageProcessor.print_img_stats(img)
     # ImageProcessor.print_img_stats(img_resized)
 
+    # ==============================================
+    # = Example Fits Image reading                 =
+    # ==============================================
     # filename = get_pkg_data_filename("tutorials/FITS-images/HorseHead.fits")
     # hdul = fits.open(filename)
     # hdul.info()
@@ -47,13 +56,18 @@ def main():
     # plt.title("Horsehead Nebula (FITS Beispiel)")
     # plt.show()
 
-    SolarDataManager.test_path()
-    fits_files = SolarDataManager.fetch_hmi_continuum("2023-06-15", "12:30")
+    # ==============================================
+    # = Example Fits Image fetching (NASA-SDO)     =
+    # ==============================================
+    # fits_files = SolarDataManager.fetch_hmi_continuum("2023-06-15", "12:30")
+    #
+    # if fits_files:
+    #     img = ImageProcessor.read_fits_image(str(fits_files[0]))
+    #     ImageProcessor.show_image(img, title="Sonne HMI Continuum Fits Bild")
 
-    if fits_files:
-        img = ImageProcessor.read_fits_image(str(fits_files[0]))
-        ImageProcessor.show_image(img, title="Sonne HMI Continuum Fits Bild")
-
+    # ==============================================
+    # = Example process images in given folder     =
+    # ==============================================
     # Process all images in folder data/img/normal/2k
     #
     # circles = []
