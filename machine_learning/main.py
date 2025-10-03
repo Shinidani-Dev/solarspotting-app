@@ -24,10 +24,25 @@ def main():
     if img.ndim == 3:
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-    ImageProcessor.show_image(gray, "Grayscale Image")
+    # ImageProcessor.show_image(gray, "Grayscale Image")
+    # ImageProcessor.show_image(img, "RGB with circle", circles)
+    # ImageProcessor.show_image(gray, "Gray with circle", circles)
 
-    ImageProcessor.show_image(img, "RGB with circle", circles)
-    ImageProcessor.show_image(gray, "Gray with circle", circles)
+    gray_blurred = ImageProcessor.gaussian_blur(gray)
+
+    # ==============================================
+    # = Read Grayscalimage and segment spots       =
+    # ==============================================
+    circle = circles[0]
+    disk_mask = ImageProcessor.create_disk_mask(gray_blurred, circle[0], circle[1], circle[2])
+    masks = ImageProcessor.segment_sunspots(gray_blurred, circle[0], circle[1], circle[2])
+
+
+    overlay = ImageProcessor.overlay_masks(img, masks)
+    ImageProcessor.show_image(overlay, "Masked Spots")
+
+    save_img_path = ML_FOLDER.joinpath("data", "img", "normal", "2k", "gray")
+    ImageProcessor.save_image(gray_blurred, save_img_path, "gray_blurred_test.jpg")
 
     # ==============================================
     # = Example resizing 4k to 2k and saving jpg   =

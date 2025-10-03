@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from astropy.io import fits
 from pathlib import Path
+from skimage.filters import threshold_multiotsu
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
@@ -112,6 +113,92 @@ class ImageProcessor:
         plt.show()
 
     @staticmethod
+    def overlay_masks(image: np.ndarray,
+                      masks: dict,
+                      colors: dict = None,
+                      alpha: dict = None) -> np.ndarray:
+        """
+        Legt definierte masken halbtransparent über das mitgegeben Bild und gibt eine
+        Kopie des Bildes samt des Overlays zurück.
+        Args:
+            image: Das Originalbild (Graustufen oder RGB)
+            masks: Dict mit Masken z.B. Umbra, Penumbra und Photosphäre
+            colors: Dict mit RGB-Farben pro Klasse
+            alpha: Dict mit Opazität pro Klasse
+
+        Returns:
+            Gibt eine Kopie des Bildes mit den eingezeichneten Masken zurück.
+        """
+        # Standardfarben (BGR für OpenCV!)
+        if colors is None:
+            colors = {
+                "umbra": (255, 0, 0),
+                "penumbra": (0, 255, 0),
+                "photosphere": (200, 200, 200)
+            }
+
+        if alpha is None:
+            alpha = {
+                "umbra": 0.6,
+                "penumbra": 0.4,
+                "photosphere": 0.8
+            }
+
+        # Falls Graustufenbild -> Konvertierung zu BGR, da für die Einzeichnung der Farbigen Masken mehr kanäle
+        # notwendig sind.
+        if len(image.shape) == 2 or image.shape[2] == 1:
+            overlay = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+        else:
+            overlay = image.copy()
+
+        overlay = overlay.astype(np.float32)
+
+        # Masken anwenden
+        for key, mask in masks.items():
+            if key not in colors or key not in alpha:
+                continue
+            if alpha[key] <= 0:
+                continue
+
+            color = np.zeros_like(overlay, dtype=np.float32)
+            color[:] = colors[key]
+
+            mask3 = np.stack([mask.astype(np.float32)] * 3, axis=-1)
+            overlay = overlay * (1 - alpha[key] * mask3) + color * (alpha[key] * mask3)
+
+        return overlay.astype(np.uint8)
+
+    @staticmethod
+    def overlay_disk_mask(image: np.ndarray,
+                          mask: np.ndarray,
+                          color: tuple = (0, 255, 0),
+                          alpha: float = 0.3) -> np.ndarray:
+        """
+        Legt die Disk-Maske der Sonne halbtransparent über das mitgegebene Bild
+        Args:
+            image: Eingabebild
+            mask: Die Maske die über das Eingabebild gelegt wird (Maske der Scheibe)
+            color: Die Farbe mit welcher die Maske eingefärbt wird
+            alpha: Die Opazität der Farbe
+
+        Returns:
+            Gibt das mitgegbene Bild mit der drübergelegten Maske als Farbbild mit Overlay zurück
+        """
+        if len(image.shape) == 2:
+            overlay = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+        else:
+            overlay = image.copy()
+
+        overlay = overlay.astype(np.float32)
+        color_layer = np.zeros_like(overlay, dtype=np.float32)
+        color_layer[:] = color
+
+        mask3 = np.stack([mask.astype(np.float32)] * 3, axis=-1)
+
+        blended = overlay * (1 - alpha * mask3) + color_layer * (alpha * mask3)
+        return blended.astype(np.uint8)
+
+    @staticmethod
     def save_image(image: np.ndarray, output_folder: Path, filename: str) -> Path:
         """
         Speichert ein Bild (np.ndarray) in dem mitgegebenen ordner ab
@@ -190,3 +277,98 @@ class ImageProcessor:
         else:
             print("Keine Kreise gefunden.")
             return None
+
+    @staticmethod
+    def create_disk_mask(image: np.ndarray, cx: int, cy: int, r: int) -> np.ndarray:
+        """
+        Erstellt eine Maske für die Sonnenscheibe
+        Args:
+            image: Das Referenzbild
+            cx: x-Koordinate des Mittelpunktes des Kreises
+            cy: y-Koordinate des Mittelpunktes des Kreises
+            r: radius des Kreises
+
+        Returns:
+            Gibt eine Binäre Maske als np.ndarray zurück das die Sonnenscheibe abdeckt.
+        """
+        h, w = image.shape[:2]
+        y, x = np.ogrid[:h, :w]
+        mask_disk = (x - cx) ** 2 + (y - cy) ** 2 <= r ** 2
+        return mask_disk
+
+    @staticmethod
+    def segment_sunspots(image: np.ndarray, cx: int, cy: int, r: int) -> dict:
+        """
+        Methode zur 3-Stufigen Segmentierung der Sonne (Umbra, Penumbra und Photosphäre)
+        Der Threshold wird mithilfe der Otsu Methode definiert.
+        Damit der Schwarze hintergrund des Bildes hier nicht interferiert,
+        wirdn die Sonnenscheibe maskiert und nur auf den Pixeln der Sonnenscheibe der Threshhold gesucht.
+        Args:
+            image: Graustufenbild als ndarray
+            cx: X-Koordinate des Zentrums der Scheibe
+            cy: Y-Koordinate des Zentrums der Scheibe
+            r: Radius der Sonnenscheibe
+
+        Returns:
+            Ein dict mit binären Masken:
+            umbra, penumbra, photosphere und disk
+        """
+        # 1. Die Disk Maskieren (Disk Maske erstellen)
+        y, x = np.ogrid[:image.shape[0], :image.shape[1]]
+        mask_disk = (x - cx) ** 2 + (y - cy) ** 2 <= r ** 2  # <-- Kreisgleichung
+
+        # 2. Nur Diskpixel für das Histogramm verwenden
+        disk_pixels = image[mask_disk]
+
+        # 3. Multi-Otsu Threshold (3 Klassen, 2 Schwellenwerte)
+        thresholds = threshold_multiotsu(disk_pixels, classes=3)
+        t1, t2 = thresholds
+        print(thresholds)
+
+        # 4. Klassifikation
+        umbra_mask = (image <= t1) & mask_disk
+        penumbra_mask = (image > t1) & (image <= t2) & mask_disk
+        photosphere_mask = (image > t2) & mask_disk
+
+        return {
+            "umbra": umbra_mask.astype(bool),
+            "penumbra": penumbra_mask.astype(bool),
+            "photosphere": photosphere_mask.astype(bool),
+            "disk": mask_disk.astype(bool)
+        }
+
+    @staticmethod
+    def gaussian_blur(image: np.ndarray, ksize: int = 5, sigma: float = 2.0) -> np.ndarray:
+        """
+        Wendet einen Gauss-Filter an um Rauschen zu unterdrücken resp. "glätten"
+        Args:
+            image: Das Eingabebild
+            ksize: Die Grösse des Gaussfilters (also der Matrix) -> Ungerade Zahl (3,5,7 ...)
+            sigma: Standardabweichung des Gauss Kerns
+
+        Returns: Gibt ein geglättetes Bild als np.ndarray zurück
+        """
+        return cv2.GaussianBlur(image, (ksize, ksize), sigma)
+
+    @staticmethod
+    def contrast_stretch(image: np.ndarray, mask: np.ndarray = None) -> np.ndarray:
+        """
+        Lineare Kontrastspreizung auf [0, 255]
+        Args:
+            image: Das Graustufenbild das gespreizt wird
+            mask: Optional, definiert Bildbereich für Spreizung
+        Returns: Bild als np.ndarray mit gespreiztem Histogramm
+        """
+        if mask is not None:
+            pixels = image[mask]
+            min_val, max_val = np.min(pixels), np.max(pixels)
+        else:
+            min_val, max_val = np.min(image), np.max(image)
+
+        if max_val == min_val:
+            return image.copy()
+
+        stretched = (image.astype(np.float32) - min_val) * (255 / (max_val - min_val))
+        return np.clip(stretched, 0, 255).astype(np.uint8)
+
+    # TODO: Implement Contrast Stretch, gamma correction, CLAHE (Contrast Limited Adaptive Histogram Equalization),
