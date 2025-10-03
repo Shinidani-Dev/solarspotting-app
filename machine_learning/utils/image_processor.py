@@ -371,4 +371,19 @@ class ImageProcessor:
         stretched = (image.astype(np.float32) - min_val) * (255 / (max_val - min_val))
         return np.clip(stretched, 0, 255).astype(np.uint8)
 
-    # TODO: Implement Contrast Stretch, gamma correction, CLAHE (Contrast Limited Adaptive Histogram Equalization),
+    @staticmethod
+    def gamma_correction(image: np.ndarray, gamma: float = 1.6) -> np.ndarray:
+        """
+        Wendet die Gammakorrektur auf das Eingabebild an
+        Ein Gamm von > 1 verstärkt den Kontrast der dunkleren Regionen
+        Args:
+            image: Eingabebild
+            gamma: exponent
+
+        Returns:
+            Gibt das Gamma Korrigierte Bild als np.ndarray zurück
+        """
+        norm = image.astype(np.float32) / 255
+        corrected = np.power(norm, gamma) * 255
+        return np.clip(corrected, 0, 255).astype(np.uint8)
+
