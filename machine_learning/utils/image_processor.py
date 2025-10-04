@@ -372,6 +372,24 @@ class ImageProcessor:
         return np.clip(stretched, 0, 255).astype(np.uint8)
 
     @staticmethod
+    def apply_clahe(image: np.ndarray, clip_limit: float = 2.0, tile_grid_size: tuple = (8, 8)) -> np.ndarray:
+        """
+        Wendet CLAHE (Contrast Limited Adaptive Histogram Equalization) an,
+        um lokale Kontraste – besonders in mittleren Graubereichen wie der Penumbra –
+        hervorzuheben.
+
+        Args:
+            image: Graustufenbild als np.ndarray
+            clip_limit: Kontrastlimit (je höher, desto stärker der Effekt, typ. 2.0–4.0)
+            tile_grid_size: Größe der Unterbereiche (z.B. (8,8) oder (16,16))
+
+        Returns:
+            np.ndarray: Bild nach CLAHE-Anwendung
+        """
+        clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
+        return clahe.apply(image)
+
+    @staticmethod
     def gamma_correction(image: np.ndarray, gamma: float = 1.6) -> np.ndarray:
         """
         Wendet die Gammakorrektur auf das Eingabebild an
@@ -387,3 +405,61 @@ class ImageProcessor:
         corrected = np.power(norm, gamma) * 255
         return np.clip(corrected, 0, 255).astype(np.uint8)
 
+    @staticmethod
+    def segment_multi_levels_otsu(image: np.ndarray, mask: np.ndarray = None, classes: int = 4) -> np.ndarray:
+        """
+        Segmentiert ein Bild in anzahl Klassen mit multi-otsu
+        Args:
+            image: Eingabebild
+            mask: Maske auf welchem Pixelbereich Multi-Otsu angewendet wird
+            classes: aanzahl Segmentationsklassen
+
+        Returns:
+            Bild als np.ndarray in Anzahl Klassen = Anzahl Farbstufen
+        """
+        if mask is not None:
+            pixels = image[mask]
+        else:
+            pixels = image
+
+        # Multi-Otsu Thresholds
+        thresholds = threshold_multiotsu(pixels, classes=classes)
+
+        # Klassenzuweisung 0..(classes-1)
+        regions = np.digitize(image, bins=thresholds)
+
+        # Palette dynamisch erstellen (gleichmäßig über 0–255)
+        palette = np.linspace(0, 255, classes, dtype=np.uint8)
+
+        segmented = palette[regions]
+
+        # Falls Maske gesetzt -> alles außerhalb schwarz
+        if mask is not None:
+            segmented[~mask] = 0
+
+        return segmented
+
+    @staticmethod
+    def process_image_through_segmentation_pipeline(image: np.ndarray) -> dict:
+        """
+        Die ganze Bildverarbeitungspipeline, vom Einlesen des Bildes bis zur segmentation der Sonnenflecken.
+        Das segmentierte bild wird geplottet und die Masken zurückgegeben
+        Args:
+            image: Das Bild das segmentiert werden soll
+
+        Returns:
+            Dictionary mit den Masken:
+            umbra, penumbra, photosphere und disk
+        """
+        circle = ImageProcessor.detect_sun_disk(image)
+        gray = image
+        if image.ndim == 3:
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+        gray_blured = ImageProcessor.gaussian_blur(gray)
+        gamma_corrected = ImageProcessor.gamma_correction(gray_blured, 0.3)
+        masks = ImageProcessor.segment_sunspots(gamma_corrected, circle[0], circle[1], circle[2])
+        overlay = ImageProcessor.overlay_masks(image, masks)
+        ImageProcessor.show_image(overlay, "Masked Spots")
+
+        return masks

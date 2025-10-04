@@ -12,10 +12,11 @@ ML_FOLDER = Path(__file__).resolve().parent
 
 
 def main():
+    img = ImageProcessor.read_normal_image("machine_learning/data/img/normal/2k/20140209_101500_SDO_2048_00.jpg")
+
     # ==============================================
     # = Example read jpg and find disk             =
     # ==============================================
-    img = ImageProcessor.read_normal_image("machine_learning/data/img/normal/2k/20250407_080000_SDO_2048_00.jpg")
     circles = [ImageProcessor.detect_sun_disk(img)]
 
     ImageProcessor.show_image(img, "RGB Image")
@@ -25,7 +26,6 @@ def main():
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
     ImageProcessor.show_image(gray, "Grayscale Image")
-    # ImageProcessor.show_image(img, "RGB with circle", circles)
     # ImageProcessor.show_image(gray, "Gray with circle", circles)
 
     # use gaussian blur to reduce noise
@@ -33,6 +33,7 @@ def main():
 
     # segment disk (create disk mask)
     circle = circles[0]
+
 
     # =====================================
     # Erstellt eine Maske der Scheibe und zeigt diese an
@@ -45,15 +46,20 @@ def main():
     # ImageProcessor.show_image(stretched, "Stretched Histogram")
     # =====================================
 
-    gamma_corrected = ImageProcessor.gamma_correction(gray_blurred, 0.3)
+    clahe_img = ImageProcessor.apply_clahe(gray_blurred, clip_limit=1.5, tile_grid_size=(16, 16))
+    ImageProcessor.show_image(clahe_img, "CLAHE Enhanced")
+
+    gamma_corrected = ImageProcessor.gamma_correction(clahe_img, 0.5)
     ImageProcessor.show_image(gamma_corrected, "Gamma Corrected")
 
+    otsu = ImageProcessor.segment_multi_levels_otsu(gamma_corrected, classes=3)
+    ImageProcessor.show_image(otsu, "4 Klassen auf Grau cahe corrected")
+
     # segment sunspot groups and create mask
-    masks = ImageProcessor.segment_sunspots(gamma_corrected, circle[0], circle[1], circle[2])
+    masks = ImageProcessor.segment_sunspots(otsu, circle[0], circle[1], circle[2])
     overlay = ImageProcessor.overlay_masks(img, masks)
     ImageProcessor.show_image(overlay, "Masked Spots")
 
-    # TODO: extract this pipeline to a separate function
 
     # ==============================================
     # = Example resizing 4k to 2k and saving jpg   =
