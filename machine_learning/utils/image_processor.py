@@ -113,6 +113,22 @@ class ImageProcessor:
         plt.show()
 
     @staticmethod
+    def convert_to_grayscale(image: np.ndarray) -> np.ndarray:
+        """
+        Stellt sicher, dass das mitgegebene Bild ein graustufenbild ist oder wandelt es in ein Graustufenbild um.
+        Args:
+            image: Eingabebild
+
+        Returns:
+            Graustufenbild des Eingabebildes
+        """
+        gray = image
+        if image.ndim == 3:
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+        return gray
+
+    @staticmethod
     def overlay_masks(image: np.ndarray,
                       masks: dict,
                       colors: dict = None,
@@ -351,6 +367,25 @@ class ImageProcessor:
         return cv2.GaussianBlur(image, (ksize, ksize), sigma)
 
     @staticmethod
+    def bilateral_filter(image: np.ndarray,
+                         d: int = 9,
+                         sigma_color: float = 75,
+                         sigma_space: float = 75) -> np.ndarray:
+        """
+        Wendet einen bilateralen Filter an, um Rauschen zu reduzieren, ohne
+        Wichtige Kanten, wie z.B. Penumbraränder zu verwischen.
+        Args:
+            image: Eingabebild (Graustufen oder BGR)
+            d: Durchmesser des Pixel-Nachbarschaftsfensters (typ. 5-15)
+            sigma_color: Fillerstärke im Farbraum (je höher, desto stärker)
+            sigma_space: Fillerstärke im Raum (je höher, desto weiter Umgebung)
+
+        Returns:
+            Gefiltertes Bild als np.ndarray
+        """
+        return cv2.bilateralFilter(image, d, sigma_color, sigma_space)
+
+    @staticmethod
     def contrast_stretch(image: np.ndarray, mask: np.ndarray = None) -> np.ndarray:
         """
         Lineare Kontrastspreizung auf [0, 255]
@@ -439,27 +474,4 @@ class ImageProcessor:
 
         return segmented
 
-    @staticmethod
-    def process_image_through_segmentation_pipeline(image: np.ndarray) -> dict:
-        """
-        Die ganze Bildverarbeitungspipeline, vom Einlesen des Bildes bis zur segmentation der Sonnenflecken.
-        Das segmentierte bild wird geplottet und die Masken zurückgegeben
-        Args:
-            image: Das Bild das segmentiert werden soll
 
-        Returns:
-            Dictionary mit den Masken:
-            umbra, penumbra, photosphere und disk
-        """
-        circle = ImageProcessor.detect_sun_disk(image)
-        gray = image
-        if image.ndim == 3:
-            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-        gray_blured = ImageProcessor.gaussian_blur(gray)
-        gamma_corrected = ImageProcessor.gamma_correction(gray_blured, 0.3)
-        masks = ImageProcessor.segment_sunspots(gamma_corrected, circle[0], circle[1], circle[2])
-        overlay = ImageProcessor.overlay_masks(image, masks)
-        ImageProcessor.show_image(overlay, "Masked Spots")
-
-        return masks
