@@ -368,9 +368,9 @@ class ImageProcessor:
 
     @staticmethod
     def bilateral_filter(image: np.ndarray,
-                         d: int = 9,
-                         sigma_color: float = 75,
-                         sigma_space: float = 75) -> np.ndarray:
+                         d: int = 5,
+                         sigma_color: float = 150,
+                         sigma_space: float = 150) -> np.ndarray:
         """
         Wendet einen bilateralen Filter an, um Rauschen zu reduzieren, ohne
         Wichtige Kanten, wie z.B. Penumbraränder zu verwischen.

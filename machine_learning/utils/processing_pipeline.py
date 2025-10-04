@@ -36,12 +36,15 @@ class ProcessingPipeline:
         return masks
 
     @staticmethod
-    def process_image_through_segmentation_pipeline_v2(image: np.ndarray) -> tuple[dict, np.ndarray]:
+    def process_image_through_segmentation_pipeline_v2(image: np.ndarray, debug_mode: bool = False) -> tuple[dict, np.ndarray]:
         """
         Die ganze Bildverarbeitungspipeline, vom Einlesen des Bildes bis zur segmentation der Sonnenflecken.
         Das segmentierte bild wird geplottet und die Masken zurückgegeben
         Args:
             image: Das Bild das segmentiert werden soll
+            debug_mode: Zusätzliche Details in den einzelnen Schritten wie z.B.:
+                - plotten der einzelnen Schritte
+                - ausgabe der parameter cx, cy und r
 
         Returns:
             Tupel mit:
@@ -49,11 +52,29 @@ class ProcessingPipeline:
                     umbra, penumbra, photosphere und disk
                 Bild mit overlay der Masken
         """
+        if debug_mode:
+            ImageProcessor.show_image(image)
+
         cx, cy, r = ImageProcessor.detect_sun_disk(image)
+
+        if debug_mode:
+            print(f"cx: {cx}, cy: {cy}, r: {r}")
+
         gray = ImageProcessor.convert_to_grayscale(image)
+        if debug_mode:
+            ImageProcessor.show_image(gray, "Graustufenbild")
+
         bilateral_filtered = ImageProcessor.bilateral_filter(gray)
+        if debug_mode:
+            ImageProcessor.show_image(bilateral_filtered, "Nach Bilateraler Filterung")
+
         multi_otsu_segmented = ImageProcessor.segment_multi_levels_otsu(bilateral_filtered, classes=3)
+        if debug_mode:
+            ImageProcessor.show_image(multi_otsu_segmented, "3-Klassen nach Multi-Level Otsu")
+
         masks = ImageProcessor.segment_sunspots(multi_otsu_segmented, cx, cy, r)
         overlay = ImageProcessor.overlay_masks(image, masks)
+        if debug_mode:
+            ImageProcessor.show_image(overlay, "Masken als Overlay über dem Originalbild")
 
         return masks, overlay
