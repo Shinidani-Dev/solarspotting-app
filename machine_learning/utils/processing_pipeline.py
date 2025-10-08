@@ -55,12 +55,14 @@ class ProcessingPipeline:
         if debug_mode:
             ImageProcessor.show_image(image)
 
-        cx, cy, r = ImageProcessor.detect_sun_disk(image)
+        resized = ImageProcessor.resize_to_2k(image)
+
+        cx, cy, r = ImageProcessor.detect_sun_disk(resized)
 
         if debug_mode:
             print(f"cx: {cx}, cy: {cy}, r: {r}")
 
-        gray = ImageProcessor.convert_to_grayscale(image)
+        gray = ImageProcessor.convert_to_grayscale(resized)
         if debug_mode:
             ImageProcessor.show_image(gray, "Graustufenbild")
 
