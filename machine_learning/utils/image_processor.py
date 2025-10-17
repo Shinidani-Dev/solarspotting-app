@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from astropy.io import fits
 from pathlib import Path
 from skimage.filters import threshold_multiotsu
+from enums.morpholog_operations import MorphologyOperation
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
@@ -474,4 +475,78 @@ class ImageProcessor:
 
         return segmented
 
+    @staticmethod
+    def binarize_with_otsu(image: np.ndarray, invert: bool = True) -> np.ndarray:
+        """
+        Makes a simple otsu binarization on a grayscale image
+        Args:
+            image: Input image which is a Grayscale image
+            invert: if true, dark spots will be 1 and white spots 0
+
+        Returns:
+            bin_mask: Binarized mask (0,1)
+        """
+        if image.dtype != np.uint8:
+            image = cv2.normalize(image, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+
+        threshold_type = cv2.THRESH_BINARY_INV if invert else cv2.THRESH_BINARY
+        _, mask = cv2.threshold(image, 0, 255, threshold_type + cv2.THRESH_OTSU)
+
+        bin_mask = (mask > 0).astype(np.uint8)
+        return bin_mask
+
+    @staticmethod
+    def binarize_from_multiotsu_output(segmented: np.ndarray,
+                                       background_value: int = 255,
+                                       inverted: bool = True) -> np.ndarray:
+        """
+        Creates a binarized mask based on the output of a multilevel 3 class segmentation
+            segmented: 3-class segmented multi otsu maks
+            background_value: value of the photosphere
+            inverted: specify if white and black pixels should be inverted
+        Returns:
+            bin_mask: binary mask (0,1)
+        """
+        # Alles, was nicht weiss (Photosphäre), ist interessant
+        if inverted:
+            bin_mask = np.where(segmented < background_value, 1, 0).astype(np.uint8)
+        else:
+            bin_mask = np.where(segmented < background_value, 0, 1).astype(np.uint8)
+        return bin_mask
+
+    @staticmethod
+    def apply_morphology(mask: np.ndarray,
+                         steps: list[tuple[MorphologyOperation, int]],
+                         kernel_size: int = 7,
+                         debug_mode: bool = False) -> np.ndarray:
+        """
+        Applies a sequence of morphology operations based on the provided steps
+        Args:
+            mask: The binarized mask on which to apply morphology
+            steps: the sqeuence of morphologies to be applied with the number of iterations
+            kernel_size: the size of morph filter
+            debug_mode: specify if each step should be displayed in an image separately
+
+        Returns:
+            the new mask after applied morphology
+        """
+        morph = mask.copy().astype(np.uint8)
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
+
+        for op, it in steps:
+            if op == MorphologyOperation.ERODE:
+                morph = cv2.erode(morph, kernel, iterations=it)
+            elif op == MorphologyOperation.DILATE:
+                morph = cv2.dilate(morph, kernel, iterations=it)
+            elif op == MorphologyOperation.OPEN:
+                morph = cv2.morphologyEx(morph, cv2.MORPH_OPEN, kernel, iterations=it)
+            elif op == MorphologyOperation.CLOSE:
+                morph = cv2.morphologyEx(morph, cv2.MORPH_CLOSE, kernel, iterations=it)
+            else:
+                continue
+
+            if debug_mode:
+                ImageProcessor.show_image(morph * 255, f"{op.name} iter={it}")
+
+        return morph
 

@@ -2,6 +2,7 @@ import numpy as np
 import warnings
 
 from machine_learning.utils.image_processor import ImageProcessor
+from enums.morpholog_operations import MorphologyOperation
 
 
 class ProcessingPipeline:
@@ -80,3 +81,50 @@ class ProcessingPipeline:
             ImageProcessor.show_image(overlay, "Masken als Overlay über dem Originalbild")
 
         return masks, overlay
+
+    @staticmethod
+    def process_image_through_segmentation_pipeline_v3(image: np.ndarray, debug_mode: bool = False) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Die ganze Bildverarbeitungspipeline, vom Einlesen des Bildes bis zur segmentation der Sonnenflecken.
+        Das segmentierte bild wird geplottet und die Masken zurückgegeben
+        Args:
+            image: Das Bild das segmentiert werden soll
+            debug_mode: Zusätzliche Details in den einzelnen Schritten wie z.B.:
+                - plotten der einzelnen Schritte
+                - ausgabe der parameter cx, cy und r
+
+        Returns:
+            Tupel mit:
+                Dictionary mit den Masken:
+                    umbra, penumbra, photosphere und disk
+                Bild mit overlay der Masken
+        """
+        if debug_mode:
+            ImageProcessor.show_image(image)
+
+        resized = ImageProcessor.resize_to_2k(image)
+
+        cx, cy, r = ImageProcessor.detect_sun_disk(resized)
+
+        disk_mask = ImageProcessor.create_disk_mask(resized, cx, cy, r)
+
+        if debug_mode:
+            print(f"cx: {cx}, cy: {cy}, r: {r}")
+
+        gray = ImageProcessor.convert_to_grayscale(resized)
+        if debug_mode:
+            ImageProcessor.show_image(gray, "Graustufenbild")
+
+        bilateral_filtered = ImageProcessor.bilateral_filter(gray)
+        if debug_mode:
+            ImageProcessor.show_image(bilateral_filtered, "Nach Bilateraler Filterung")
+
+        multi_otsu_segmented = ImageProcessor.segment_multi_levels_otsu(bilateral_filtered, classes=3)
+        if debug_mode:
+            ImageProcessor.show_image(multi_otsu_segmented, "3-Klassen nach Multi-Level Otsu")
+
+        binarized = ImageProcessor.binarize_from_multiotsu_output(multi_otsu_segmented)
+        if debug_mode:
+            ImageProcessor.show_image(binarized, "Binarisiert")
+
+        return binarized, disk_mask

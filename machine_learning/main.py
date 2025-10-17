@@ -10,6 +10,7 @@ from utils.image_processor import ImageProcessor
 from utils.solar_data_manager import SolarDataManager
 from utils.processing_pipeline import ProcessingPipeline
 from utils.solar_reprojector import SolarReprojector
+from enums.morpholog_operations import MorphologyOperation
 
 ML_FOLDER = Path(__file__).resolve().parent
 
@@ -19,7 +20,7 @@ img_list = ["machine_learning/data/img/normal/2k/20140209_101500_SDO_2048_00.jpg
             "machine_learning/data/img/normal/2k/20250306_083000_SDO_2048_00.jpg",
             "machine_learning/data/img/normal/2k/20250308_083000_SDO_2048_00.jpg",
             "machine_learning/data/img/normal/2k/20250407_080000_SDO_2048_00.jpg",
-            "machine_learning/data/img/normal/4k/20240804_084500_Ic_flat_4k.jpg"]
+            "machine_learning/data/img/normal/4k/20140607_073000_Ic_flat_4k.jpg"]
 
 
 def main():
@@ -49,28 +50,35 @@ def main():
     # ===================================
     # Rektifizierung Testing            =
     # ===================================
-    img = ImageProcessor.read_normal_image(img_list[6])
-    masks, overlay = ProcessingPipeline.process_image_through_segmentation_pipeline_v2(img, True)
+    img = ImageProcessor.read_normal_image(img_list[5])
+
+    binarized, disk_mask = ProcessingPipeline.process_image_through_segmentation_pipeline_v3(img, False)
+
+    morph_steps = [
+        (MorphologyOperation.DILATE, 3),
+        (MorphologyOperation.CLOSE, 4)
+    ]
+    ImageProcessor.show_image(binarized, "Binarisiertes Bild")
+
+    morphed = ImageProcessor.apply_morphology(binarized, morph_steps, 12, True)
+
+    #ImageProcessor.show_image(disk_mask, "Disk maske")
+
     scaled = ImageProcessor.resize_to_2k(img)
 
     gray = ImageProcessor.convert_to_grayscale(scaled)
 
     cx, cy, r = ImageProcessor.detect_sun_disk(gray)
 
-    px, py = cx-600, cy+180
+    px, py = cx+500, cy+180
     scale = 512
 
     rectified = SolarReprojector.rectify_patch(gray, px, py, scale, cx, cy, r)
 
     print(f"Patchgrösse: {rectified.shape[1]}x{rectified.shape[0]} Pixel")
 
-    ImageProcessor.show_image(gray, title="Original Image")
-    ImageProcessor.show_image(rectified, title="Rectified Patch")
-
-    plt.imshow(rectified, cmap='gray', vmin=0, vmax=255)
-    plt.title("Rectified Patch (echte Werte)")
-    plt.colorbar()
-    plt.show()
+    # ImageProcessor.show_image(gray, title="Original Image")
+    # ImageProcessor.show_image(rectified, title="Rectified Patch")
 
 
 if __name__ == "__main__":
