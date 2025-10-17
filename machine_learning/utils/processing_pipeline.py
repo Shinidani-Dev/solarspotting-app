@@ -75,7 +75,7 @@ class ProcessingPipeline:
             ImageProcessor.show_image(multi_otsu_segmented, "3-Klassen nach Multi-Level Otsu")
 
         masks = ImageProcessor.segment_sunspots(multi_otsu_segmented, cx, cy, r)
-        overlay = ImageProcessor.overlay_masks(image, masks)
+        overlay = ImageProcessor.overlay_masks(resized, masks)
         if debug_mode:
             ImageProcessor.show_image(overlay, "Masken als Overlay über dem Originalbild")
 

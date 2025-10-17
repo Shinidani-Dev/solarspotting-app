@@ -18,7 +18,8 @@ img_list = ["machine_learning/data/img/normal/2k/20140209_101500_SDO_2048_00.jpg
             "machine_learning/data/img/normal/2k/20230714_153000_SDO_2048_00.jpg",
             "machine_learning/data/img/normal/2k/20250306_083000_SDO_2048_00.jpg",
             "machine_learning/data/img/normal/2k/20250308_083000_SDO_2048_00.jpg",
-            "machine_learning/data/img/normal/2k/20250407_080000_SDO_2048_00.jpg"]
+            "machine_learning/data/img/normal/2k/20250407_080000_SDO_2048_00.jpg",
+            "machine_learning/data/img/normal/4k/20240804_084500_Ic_flat_4k.jpg"]
 
 
 def main():
@@ -48,12 +49,15 @@ def main():
     # ===================================
     # Rektifizierung Testing            =
     # ===================================
-    img = ImageProcessor.read_normal_image(img_list[1])
-    gray = ImageProcessor.convert_to_grayscale(img)
+    img = ImageProcessor.read_normal_image(img_list[6])
+    masks, overlay = ProcessingPipeline.process_image_through_segmentation_pipeline_v2(img, True)
+    scaled = ImageProcessor.resize_to_2k(img)
+
+    gray = ImageProcessor.convert_to_grayscale(scaled)
 
     cx, cy, r = ImageProcessor.detect_sun_disk(gray)
 
-    px, py = cx+500, cy+300
+    px, py = cx-600, cy+180
     scale = 512
 
     rectified = SolarReprojector.rectify_patch(gray, px, py, scale, cx, cy, r)

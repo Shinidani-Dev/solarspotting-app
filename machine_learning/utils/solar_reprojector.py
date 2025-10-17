@@ -111,19 +111,28 @@ class SolarReprojector:
         n /= np.linalg.norm(n)
 
         z_axis = np.array([0.0, 0.0, 1.0])
+        # gibt den Normalenvektor zwischen der Z-Achse und dem vektor n,
+        # also da wo sich der Mittelpunkt unseres patches befindet
         v = np.cross(z_axis, n)
+        # sinus des Drehwinkels
         s = np.linalg.norm(v)
+        # cosinus des Drehwinkels
         c = np.dot(z_axis, n)
 
+        # wenn sinos nache bei 0 ist oder cosinus nahe bei 1,
+        # dann "schauen" wir schon direkt darauf und als "Rotationsmatrix" wird einfach die einheitsmatrix genommen
         if s < EPSILON or np.isclose(c, 1.0):
             R = np.eye(3)
         else:
+            # Rodrigues'sche Rotationsformel
             vx = np.array([[0, -v[2], v[1]],
                            [v[2], 0, -v[0]],
                            [-v[1], v[0], 0]])
             R = np.eye(3) + vx + vx @ vx * ((1 - c) / (s ** 2))
 
+        # hier wird ien 2D Raster für den lokalen Patch erstellt
         grid_x, grid_y = SolarReprojector.generate_patch_grid(px, py, scale)
+        # hier wird das raster in 3D-Punkte auf der sonnenkugel umgewandelt
         X, Y, Z = SolarReprojector.cartesian_to_spherical(grid_x, grid_y, cx, cy, r)
 
         points = np.stack((X, Y, Z), axis=-1)
@@ -132,6 +141,8 @@ class SolarReprojector:
         X_new = (rotated[..., 0] * r + cx).astype(np.float32)
         Y_new = (rotated[..., 1] * r + cy).astype(np.float32)
 
+        # OpenCv funktion um neue Pixelwerte aus dem Originalbild mittels interpolation zu errechnen.
+        # "INTER_LINEAR" sorgt für glatte Übergänge
         rectified = cv2.remap(
             image.astype(np.float32),
             X_new, Y_new,
