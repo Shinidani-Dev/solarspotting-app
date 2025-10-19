@@ -310,6 +310,8 @@ class ImageProcessor:
         """
         h, w = image.shape[:2]
         y, x = np.ogrid[:h, :w]
+        # set the mask minimally smaller, so that no circle artifacts apply when adding the mask to the binarized image
+        r = r * 0.975
         mask_disk = (x - cx) ** 2 + (y - cy) ** 2 <= r ** 2
         return mask_disk
 
@@ -550,3 +552,104 @@ class ImageProcessor:
 
         return morph
 
+    @staticmethod
+    def detect_candidates(mask: np.ndarray,
+                          disk_mask: np.ndarray) -> list[dict]:
+        """
+        Detects connected regions in a binary mask and returns its center and bounding rectangle.
+        The return value are so called candidates for the rectifying process and then for the cnn
+        Args:
+            mask: The binary image of the sun
+            disk_mask: the maks, where to detect the candidates (only in the center)
+
+        Returns:
+        Eine Liste of dictionaries, per region:
+            {
+                "cx": float, "cy": float,
+                "min_x": int, "min_y": int,
+                "max_x": int, "max_y": int,
+                "area": int
+            }
+        """
+        mask = (mask > 0).astype(np.uint8)
+        disk_mask = (disk_mask > 0).astype(np.uint8)
+
+        mask_in_disk = cv2.bitwise_and(mask, disk_mask)
+
+        ImageProcessor.show_image(mask_in_disk)
+
+        num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask_in_disk, connectivity=8)
+
+        regions = []
+
+        for i in range(1, num_labels):
+            x, y, w, h = stats[i, cv2.CC_STAT_LEFT], stats[i, cv2.CC_STAT_TOP], \
+                         stats[i, cv2.CC_STAT_WIDTH], stats[i, cv2.CC_STAT_HEIGHT]
+            cx, cy = centroids[i]
+
+            if not disk_mask[int(cy), int(cx)]:
+                continue
+
+            regions.append({
+                "cx": float(cx),
+                "cy": float(cy),
+                "min_x": int(x),
+                "min_y": int(y),
+                "max_x": int(x + w),
+                "max_y": int(y + h)
+            })
+
+        return regions
+
+    @staticmethod
+    def show_candidates(image: np.ndarray,
+                        candidates: list[dict],
+                        title: str = "Detected Candidates",
+                        box_color: tuple = (0, 255, 0),
+                        center_color: tuple = (255, 0, 0),
+                        thickness: int = 2) -> None:
+        """
+        shows the image and draws the detected candidates in that passed image (as bounding rectangles)
+        Args:
+            image: Original image (gray or bgr)
+            candidates: list of detected candidates
+            title: title of display window
+            box_color: color of the boxes
+            center_color: color of the centers
+            thickness: line thickness
+        """
+        if len(image.shape) == 2 or image.shape[2] == 1:
+            img_out = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+        else:
+            img_out = image.copy()
+
+        for c in candidates:
+            cv2.rectangle(
+                img_out,
+                (c["min_x"], c["min_y"]),
+                (c["max_x"], c["max_y"]),
+                box_color,
+                thickness
+            )
+
+            cv2.circle(
+                img_out,
+                (int(c["cx"]), int(c["cy"])),
+                radius=5,
+                color=center_color,
+                thickness=-1
+            )
+
+        ImageProcessor.show_image(img_out, title)
+
+    @staticmethod
+    def bitwise_masking_sundisk(mask: np.ndarray,
+                                disk_mask: np.ndarray) -> np.ndarray:
+        mask = (mask > 0).astype(np.uint8)
+        disk_mask = (disk_mask > 0).astype(np.uint8)
+
+        mask_in_disk = cv2.bitwise_and(mask, disk_mask)
+
+        ImageProcessor.show_image(mask_in_disk)
+
+        return mask_in_disk

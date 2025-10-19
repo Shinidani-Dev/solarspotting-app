@@ -50,17 +50,13 @@ def main():
     # ===================================
     # Rektifizierung Testing            =
     # ===================================
-    img = ImageProcessor.read_normal_image(img_list[5])
+    img = ImageProcessor.read_normal_image(img_list[1])
 
-    binarized, disk_mask = ProcessingPipeline.process_image_through_segmentation_pipeline_v3(img, False)
+    morphed, disk_mask = ProcessingPipeline.process_image_through_segmentation_pipeline_v3(img, True)
 
-    morph_steps = [
-        (MorphologyOperation.DILATE, 3),
-        (MorphologyOperation.CLOSE, 4)
-    ]
-    ImageProcessor.show_image(binarized, "Binarisiertes Bild")
+    candidates = ImageProcessor.detect_candidates(morphed, disk_mask)
 
-    morphed = ImageProcessor.apply_morphology(binarized, morph_steps, 12, True)
+    ImageProcessor.show_candidates(img, candidates)
 
     #ImageProcessor.show_image(disk_mask, "Disk maske")
 
@@ -70,15 +66,15 @@ def main():
 
     cx, cy, r = ImageProcessor.detect_sun_disk(gray)
 
-    px, py = cx+500, cy+180
+    px, py = cx+500, cy-100
     scale = 512
 
     rectified = SolarReprojector.rectify_patch(gray, px, py, scale, cx, cy, r)
 
     print(f"Patchgrösse: {rectified.shape[1]}x{rectified.shape[0]} Pixel")
 
-    # ImageProcessor.show_image(gray, title="Original Image")
-    # ImageProcessor.show_image(rectified, title="Rectified Patch")
+    ImageProcessor.show_image(gray, title="Original Image")
+    ImageProcessor.show_image(rectified, title="Rectified Patch")
 
 
 if __name__ == "__main__":

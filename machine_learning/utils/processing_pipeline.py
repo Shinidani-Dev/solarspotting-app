@@ -127,4 +127,11 @@ class ProcessingPipeline:
         if debug_mode:
             ImageProcessor.show_image(binarized, "Binarisiert")
 
-        return binarized, disk_mask
+        morph_steps = [
+            (MorphologyOperation.DILATE, 3),
+            (MorphologyOperation.CLOSE, 4)
+        ]
+
+        morphed = ImageProcessor.apply_morphology(binarized, morph_steps, 12, True)
+
+        return morphed, disk_mask
