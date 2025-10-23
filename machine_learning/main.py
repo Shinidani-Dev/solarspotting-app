@@ -55,8 +55,10 @@ def main():
     morphed, disk_mask = ProcessingPipeline.process_image_through_segmentation_pipeline_v3(img, True)
 
     candidates = ImageProcessor.detect_candidates(morphed, disk_mask)
-
     ImageProcessor.show_candidates(img, candidates)
+
+    merged_candidates = ImageProcessor.merge_nearby_candidates(candidates, 200, 300)
+    ImageProcessor.show_candidates(img, merged_candidates)
 
     #ImageProcessor.show_image(disk_mask, "Disk maske")
 

@@ -602,6 +602,55 @@ class ImageProcessor:
         return regions
 
     @staticmethod
+    def merge_nearby_candidates(regions: list[dict],
+                                max_dist: int = 300,
+                                max_size: int = 512
+                                ) -> list[dict]:
+        merged = []
+        used = set()
+
+        for i, r1 in enumerate(regions):
+            if i in used:
+                continue
+
+            group = [r1]
+            for j, r2 in enumerate(regions):
+                if j in used or i == j:
+                    continue
+                dist = np.hypot(r1["cx"] - r2["cx"], r1["cy"] - r2["cy"])
+                if dist < max_dist:
+                    group.append(r2)
+                    used.add(j)
+            used.add(i)
+
+            min_x = min(g["min_x"] for g in group)
+            min_y = min(g["min_y"] for g in group)
+            max_x = max(g["max_x"] for g in group)
+            max_y = max(g["max_y"] for g in group)
+
+            width = max_x - min_x
+            height = max_y - min_y
+
+            if width > max_size or height > max_size:
+                for g in group:
+                    merged.append(g)
+                continue
+
+            cx = np.mean([g["cx"] for g in group])
+            cy = np.mean([g["cy"] for g in group])
+
+            merged.append({
+                "cx": float(cx),
+                "cy": float(cy),
+                "min_x": int(min_x),
+                "min_y": int(min_y),
+                "max_x": int(max_x),
+                "max_y": int(max_y)
+            })
+
+        return merged
+
+    @staticmethod
     def show_candidates(image: np.ndarray,
                         candidates: list[dict],
                         title: str = "Detected Candidates",
