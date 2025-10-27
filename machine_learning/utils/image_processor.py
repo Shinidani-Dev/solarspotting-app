@@ -1,8 +1,10 @@
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+import re
 from astropy.io import fits
 from pathlib import Path
+from datetime import datetime
 from skimage.filters import threshold_multiotsu
 from machine_learning.enums.morpholog_operations import MorphologyOperation
 
@@ -812,3 +814,36 @@ class ImageProcessor:
         ImageProcessor.show_image(mask_in_disk)
 
         return mask_in_disk
+
+    def parse_sdo_filename(filename: str) -> datetime:
+        """
+        Extrahiert Datum und Uhrzeit aus SDO-Dateinamen.
+
+        Format: YYYYMMDD_HHMMSS_SDO_2048_00.jpg
+        Beispiel: 20140405_103000_SDO_2048_00.jpg -> 2014-04-05 10:30:00 UTC
+
+        Args:
+            filename: Dateiname (mit oder ohne Pfad)
+
+        Returns:
+            datetime-Objekt (UTC)
+
+        Raises:
+            ValueError: Wenn Dateiname nicht dem erwarteten Format entspricht
+        """
+        basename = Path(filename).name
+
+        pattern = r'^(\d{8})_(\d{6})_'
+        match = re.match(pattern, basename)
+
+        if not match:
+            raise ValueError(
+                f"Dateiname '{basename}' entspricht nicht dem Format YYYYMMDD_HHMMSS_..."
+            )
+
+        date_str = match.group(1)
+        time_str = match.group(2)
+
+        dt = datetime.strptime(f"{date_str}{time_str}", "%Y%m%d%H%M%S")
+
+        return dt

@@ -1,6 +1,9 @@
 import numpy as np
 import cv2
 
+from datetime import datetime
+from machine_learning.utils.solar_orientation import SolarOrientation
+
 
 """
 Konstanten
@@ -93,56 +96,34 @@ class SolarReprojector:
                       cx: int, cy: int, r: int) -> np.ndarray:
         """
         Führt eine lokale orthografische Reprojektion (Rektifizierung) auf der Sonnenkugel durch.
-        Args:
-            image: Eingabebild der Sonne in Graustufen
-            px: X-Koordinate des Patch mittelpunktes
-            py: Y-Koordinate des Patch mittelpunktes
-            scale: Kantenlänge des quadratischen Patches (z.B. 128 px)
-            cx: X-Koordinate des Zentrums der Sonnenscheibe
-            cy: Y-Koordinate des Zentrums der sonnenscheibe
-            r: radius der Sonnenscheibe (in Pixeln)
-
-        Returns:
-            rect: Entzerrtes Bild im Patch
-            km_per_px: physikalischer Massstab in km/px
         """
-        nx, ny, nz = SolarReprojector.cartesian_to_spherical(np.array(px), np.array(py), cx, cy, r)
-        n = np.array([nx, ny, nz], dtype=np.float64)
+        nx, ny, nz = SolarReprojector.cartesian_to_spherical(
+            np.array([px]), np.array([py]), cx, cy, r
+        )
+        n = np.array([nx[0], ny[0], nz[0]], dtype=np.float64)
         n /= np.linalg.norm(n)
 
-        z_axis = np.array([0.0, 0.0, 1.0])
-        # gibt den Normalenvektor zwischen der Z-Achse und dem vektor n,
-        # also da wo sich der Mittelpunkt unseres patches befindet
-        v = np.cross(z_axis, n)
-        # sinus des Drehwinkels
-        s = np.linalg.norm(v)
-        # cosinus des Drehwinkels
-        c = np.dot(z_axis, n)
+        z_axis = n
 
-        # wenn sinos nache bei 0 ist oder cosinus nahe bei 1,
-        # dann "schauen" wir schon direkt darauf und als "Rotationsmatrix" wird einfach die einheitsmatrix genommen
-        if s < EPSILON or np.isclose(c, 1.0):
-            R = np.eye(3)
-        else:
-            # Rodrigues'sche Rotationsformel
-            vx = np.array([[0, -v[2], v[1]],
-                           [v[2], 0, -v[0]],
-                           [-v[1], v[0], 0]])
-            R = np.eye(3) + vx + vx @ vx * ((1 - c) / (s ** 2))
+        ref = np.array([0.0, 1.0, 0.0]) if abs(z_axis[2]) > 0.9 else np.array([0.0, 0.0, 1.0])
 
-        # hier wird ien 2D Raster für den lokalen Patch erstellt
-        grid_x, grid_y = SolarReprojector.generate_patch_grid(px, py, scale)
-        # hier wird das raster in 3D-Punkte auf der sonnenkugel umgewandelt
-        X, Y, Z = SolarReprojector.cartesian_to_spherical(grid_x, grid_y, cx, cy, r)
+        x_axis = np.cross(ref, z_axis)
+        x_axis /= np.linalg.norm(x_axis)
+        y_axis = np.cross(z_axis, x_axis)
+        y_axis /= np.linalg.norm(y_axis)
 
-        points = np.stack((X, Y, Z), axis=-1)
-        rotated = points @ R.T
+        R = np.stack((x_axis, y_axis, z_axis), axis=1)
 
-        X_new = (rotated[..., 0] * r + cx).astype(np.float32)
-        Y_new = (rotated[..., 1] * r + cy).astype(np.float32)
+        gx, gy = np.meshgrid(np.linspace(-1, 1, scale), np.linspace(-1, 1, scale))
+        gx *= (scale / (2 * r))
+        gy *= (scale / (2 * r))
 
-        # OpenCv funktion um neue Pixelwerte aus dem Originalbild mittels interpolation zu errechnen.
-        # "INTER_LINEAR" sorgt für glatte Übergänge
+        points_local = np.stack((gx, gy, np.ones_like(gx)), axis=-1)
+        points_global = points_local @ R.T
+
+        X_new = (points_global[..., 0] * r + cx).astype(np.float32)
+        Y_new = (points_global[..., 1] * r + cy).astype(np.float32)
+
         rectified = cv2.remap(
             image.astype(np.float32),
             X_new, Y_new,
@@ -150,5 +131,69 @@ class SolarReprojector:
             borderMode=cv2.BORDER_CONSTANT,
             borderValue=[0.0]
         )
+        if px > cx:
+            rectified = cv2.rotate(rectified, cv2.ROTATE_90_CLOCKWISE)
+        else:
+            rectified = cv2.rotate(rectified, cv2.ROTATE_90_COUNTERCLOCKWISE)
+
         return rectified
 
+    @staticmethod
+    def rectify_patch_from_solar_orientation(image: np.ndarray,
+                      px: int, py: int, scale: int,
+                      cx: int, cy: int, r: int,
+                      observation_time: datetime) -> np.ndarray:
+        """
+        Führt eine lokale orthografische Reprojektion mit korrekter Orientierung durch.
+
+        Args:
+            P0: Positionswinkel der Sonnenachse (in Grad)
+            B0: Heliographische Breite des Scheibenmittelpunkts (in Grad)
+        """
+        B0, P0, L0 = SolarOrientation.from_datetime(observation_time)
+
+        nx, ny, nz = SolarReprojector.cartesian_to_spherical(
+            np.array([px]), np.array([py]), cx, cy, r
+        )
+        n = np.array([nx[0], ny[0], nz[0]], dtype=np.float64)
+        n /= np.linalg.norm(n)
+
+        # 2. Heliographische "Nord"-Richtung im Bildkoordinatensystem
+        P0_rad = np.deg2rad(P0)
+        north_2d = np.array([-np.sin(P0_rad), -np.cos(P0_rad), 0.0])
+
+        # 3. Projiziere "Nord" in die Tangentialebene am Punkt n
+        north_tangent = north_2d - np.dot(north_2d, n) * n
+        north_tangent /= np.linalg.norm(north_tangent)
+
+        # 4. Lokales Koordinatensystem mit Nord = y-Achse
+        y_axis = -north_tangent  # Nord zeigt "nach oben" im rektifizierten Bild
+        z_axis = n  # Normal zur Sonnenoberfläche
+        x_axis = np.cross(y_axis, z_axis)  # Ost-West-Richtung
+        x_axis /= np.linalg.norm(x_axis)
+
+        # 5. Rotationsmatrix (Spalten = Basisvektoren)
+        R = np.stack((x_axis, y_axis, z_axis), axis=1)
+
+        # 6. Grid im lokalen System erstellen
+        gx, gy = np.meshgrid(np.linspace(-1, 1, scale), np.linspace(-1, 1, scale))
+        gx *= (scale / (2 * r))
+        gy *= (scale / (2 * r))
+
+        points_local = np.stack((gx, gy, np.ones_like(gx)), axis=-1)
+        points_global = points_local @ R.T
+
+        # 7. Zurück in Bildkoordinaten
+        X_new = (points_global[..., 0] * r + cx).astype(np.float32)
+        Y_new = (points_global[..., 1] * r + cy).astype(np.float32)
+
+        # 8. Remap OHNE zusätzliche Rotation
+        rectified = cv2.remap(
+            image.astype(np.float32),
+            X_new, Y_new,
+            interpolation=cv2.INTER_LINEAR,
+            borderMode=cv2.BORDER_CONSTANT,
+            borderValue=[0.0]
+        )
+
+        return rectified

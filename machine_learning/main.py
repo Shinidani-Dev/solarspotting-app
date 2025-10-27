@@ -23,7 +23,10 @@ img_list = ["data/img/normal/2k/20140209_101500_SDO_2048_00.jpg",
             "data/img/normal/4k/20140607_073000_Ic_flat_4k.jpg"]
 
 TESTING = True
+TESTING_SOLAR = True
 
+CENTER_X = 117
+CENTER_Y = 1210
 
 def main():
     # img = ImageProcessor.read_normal_image(img_list[1])
@@ -53,6 +56,29 @@ def main():
     # Rektifizierung Testing            =
     # ===================================
     #ProcessingPipeline.process_dataset("data/input", "data/output")
+    if TESTING_SOLAR:
+        img = ImageProcessor.read_normal_image(img_list[0])
+        dt = ImageProcessor.parse_sdo_filename(img_list[0])
+
+        morphed, disk_mask, cx, cy, r = ProcessingPipeline.process_image_through_segmentation_pipeline_v3(img, False)
+
+        candidates = ImageProcessor.detect_candidates(morphed, disk_mask)
+        ImageProcessor.show_candidates(img, candidates)
+
+        merged_candidates = ImageProcessor.merge_nearby_candidates(candidates, 200, 300)
+        ImageProcessor.show_candidates(img, merged_candidates)
+
+        scaled = ImageProcessor.resize_to_2k(img)
+
+        gray = ImageProcessor.convert_to_grayscale(scaled)
+        ImageProcessor.show_image(gray)
+
+        px = CENTER_X
+        py = CENTER_Y
+
+        rectified = SolarReprojector.rectify_patch_from_solar_orientation(gray, int(px), int(py), 512, cx, cy, r, dt)
+
+        ImageProcessor.show_image(rectified, "Solar rectified")
 
     if TESTING:
         img = ImageProcessor.read_normal_image(img_list[0])
@@ -73,14 +99,14 @@ def main():
         gray = ImageProcessor.convert_to_grayscale(scaled)
         ImageProcessor.show_image(gray)
 
-        px = 407
-        py = 864
+        px = CENTER_X
+        py = CENTER_Y
 
         #px, py = ImageProcessor.adjust_candidate_center_axiswise(px, py, cx, cy, r, 512, 0.85)
 
         print(f"new px {px}, new py {py}")
 
-        rectified = SolarReprojector.rectify_patch(gray, int(px), int(py), 256, cx, cy, r)
+        rectified = SolarReprojector.rectify_patch(gray, int(px), int(py), 512, cx, cy, r)
         ImageProcessor.show_image(rectified)
 
         if not TESTING:
