@@ -688,6 +688,57 @@ class ImageProcessor:
 
         return new_can_x, new_can_y
 
+    @staticmethod
+    def adjust_candidate_center_axiswise(can_cx: float,
+                                         can_cy: float,
+                                         sun_cx: float,
+                                         sun_cy: float,
+                                         sun_r: float,
+                                         scale: int,
+                                         margin_factor: float = 0.98) -> tuple[float, float]:
+        """
+        Adjusts the candidate center position if it is too close to the sun's edge.
+        The shift is done axis-wise (x or y), depending on which axis exceeds the margin.
+
+        Args:
+            can_cx: candidate center x
+            can_cy: candidate center y
+            sun_cx: sun center x
+            sun_cy: sun center y
+            sun_r: sun disk radius
+            scale: patch size (width or height in px)
+            margin_factor: allowed relative margin from the disk edge (0.98 = 2% margin)
+
+        Returns:
+            (new_can_cx, new_can_cy)
+        """
+        dx, dy = can_cx - sun_cx, can_cy - sun_cy
+        dist = np.sqrt(dx ** 2 + dy ** 2)
+
+        max_r = sun_r * margin_factor - scale / 2
+
+        if dist <= max_r:
+            return can_cx, can_cy
+
+        new_x, new_y = can_cx, can_cy
+
+        x_min = sun_cx - max_r
+        x_max = sun_cx + max_r
+        y_min = sun_cy - max_r
+        y_max = sun_cy + max_r
+
+        if can_cx < x_min:
+            new_x = x_min
+        elif can_cx > x_max:
+            new_x = x_max
+
+        if can_cy < y_min:
+            new_y = y_min
+        elif can_cy > y_max:
+            new_y = y_max
+
+        return new_x, new_y
+
 
     @staticmethod
     def show_candidates(image: np.ndarray,

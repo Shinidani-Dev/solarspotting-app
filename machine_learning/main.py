@@ -73,21 +73,21 @@ def main():
         gray = ImageProcessor.convert_to_grayscale(scaled)
         ImageProcessor.show_image(gray)
 
-        px = 1906
-        py = 816
+        px = 407
+        py = 864
 
-        px, py = ImageProcessor.adjust_candidate_center(px, py, cx, cy, r, 512, 0.86)
+        #px, py = ImageProcessor.adjust_candidate_center_axiswise(px, py, cx, cy, r, 512, 0.85)
 
         print(f"new px {px}, new py {py}")
 
-        rectified = SolarReprojector.rectify_patch(gray, int(px), int(py), 512, cx, cy, r)
+        rectified = SolarReprojector.rectify_patch(gray, int(px), int(py), 256, cx, cy, r)
         ImageProcessor.show_image(rectified)
 
         if not TESTING:
             for cand in merged_candidates:
                 px = cand["cx"]
                 py = cand["cy"]
-                px, py = ImageProcessor.adjust_candidate_center(px, py, cx, cy, r, 512, 0.86)
+                px, py = ImageProcessor.adjust_candidate_center_axiswise(px, py, cx, cy, r, 512, 0.85)
 
                 rectified = SolarReprojector.rectify_patch(gray, int(px), int(py), 512, cx, cy, r)
                 print(f"candidate px: {px}")
