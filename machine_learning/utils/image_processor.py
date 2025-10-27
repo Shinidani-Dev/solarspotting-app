@@ -4,9 +4,9 @@ import matplotlib.pyplot as plt
 from astropy.io import fits
 from pathlib import Path
 from skimage.filters import threshold_multiotsu
-from enums.morpholog_operations import MorphologyOperation
+from machine_learning.enums.morpholog_operations import MorphologyOperation
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 class ImageProcessor:
@@ -651,6 +651,45 @@ class ImageProcessor:
         return merged
 
     @staticmethod
+    def adjust_candidate_center(can_cx: float,
+                                can_cy: float,
+                                sun_cx: float,
+                                sun_cy: float,
+                                sun_r: float,
+                                scale: int,
+                                margin_factor: float = 0.98) -> tuple[float, float]:
+        """
+        Moves the candidate center coordinates slightly towards the center if it is too near from edge
+        Args:
+            can_cx: candidate center x
+            can_cy: candidate center y
+            sun_cx: sundisk center x
+            sun_cy: sundisk center y
+            sun_r: sundisk radius
+            scale: scale of the desired patch
+            margin_factor: add margin so that it is not too near from edge
+
+        Returns:
+            the new center coordinate of the candidate
+        """
+        dx, dy = can_cx - sun_cx, can_cy - sun_cy
+        dist = np.sqrt(dx**2 + dy**2)
+        max_dist = sun_r * margin_factor - (scale / 2)
+
+        if dist <= max_dist:
+            return can_cx, can_cy
+
+        if dist < 1e-6:
+            return can_cx, can_cy
+
+        scalefactor = max_dist / dist
+        new_can_x = sun_cx + dx * scalefactor
+        new_can_y = sun_cy + dy * scalefactor
+
+        return new_can_x, new_can_y
+
+
+    @staticmethod
     def show_candidates(image: np.ndarray,
                         candidates: list[dict],
                         title: str = "Detected Candidates",
@@ -673,10 +712,17 @@ class ImageProcessor:
             img_out = image.copy()
 
         for c in candidates:
+            cx = c["cx"]
+            cy = c["cy"]
+            min_x = c["min_x"]
+            min_y = c["min_y"]
+            max_x = c["max_x"]
+            max_y = c["max_y"]
+
             cv2.rectangle(
                 img_out,
-                (c["min_x"], c["min_y"]),
-                (c["max_x"], c["max_y"]),
+                (min_x, min_y),
+                (max_x, max_y),
                 box_color,
                 thickness
             )
@@ -687,6 +733,19 @@ class ImageProcessor:
                 radius=5,
                 color=center_color,
                 thickness=-1
+            )
+
+            text = f"center: ({int(cx)}, {int(cy)})"
+            text_pos = (min_x - 100, max_y + 20)
+            cv2.putText(
+                img_out,
+                text,
+                text_pos,
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.8,
+                center_color,
+                1,
+                cv2.LINE_AA
             )
 
         ImageProcessor.show_image(img_out, title)
