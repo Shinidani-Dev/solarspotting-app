@@ -22,40 +22,17 @@ img_list = ["data/img/normal/2k/20140209_101500_SDO_2048_00.jpg",
             "data/img/normal/2k/20250407_080000_SDO_2048_00.jpg",
             "data/img/normal/4k/20140607_073000_Ic_flat_4k.jpg"]
 
-TESTING = True
-TESTING_SOLAR = True
+TESTING = False
+TESTING_SOLAR = False
+TESTING_FOR_LOOP = False
 
 CENTER_X = 117
 CENTER_Y = 1210
 
+
 def main():
-    # img = ImageProcessor.read_normal_image(img_list[1])
-    #
-    # save_path = ML_FOLDER.joinpath("data", "img", "normal", "2k", "test_v2")
-    # # ImageProcessor.save_image(img, save_path, "original.jpg")
-    #
-    # cx, cy, r = ImageProcessor.detect_sun_disk(img)
-    # gray = ImageProcessor.convert_to_grayscale(img)
-    #
-    # bilateral = ImageProcessor.bilateral_filter(gray)
-    # ImageProcessor.save_image(bilateral, save_path, "bilateral.jpg")
-    #
-    # multi_otsu_segmented = ImageProcessor.segment_multi_levels_otsu(bilateral, classes=3)
-    #
-    # masks = ImageProcessor.segment_sunspots(multi_otsu_segmented, cx, cy, r)
-    # overlay = ImageProcessor.overlay_masks(img, masks)
-    # ImageProcessor.save_image(overlay, save_path, "overlay_masks.jpg")
+    ProcessingPipeline.process_dataset("data/input", "data/output")
 
-    # for imgp in img_list:
-    #     img = ImageProcessor.read_normal_image(imgp)
-    #     masks, overlay = ProcessingPipeline.process_image_through_segmentation_pipeline_v2(img, True)
-    #     ImageProcessor.show_image(overlay, "Overlay segments")
-    #     break
-
-    # ===================================
-    # Rektifizierung Testing            =
-    # ===================================
-    #ProcessingPipeline.process_dataset("data/input", "data/output")
     if TESTING_SOLAR:
         img = ImageProcessor.read_normal_image(img_list[0])
         dt = ImageProcessor.parse_sdo_filename(img_list[0])
@@ -109,13 +86,12 @@ def main():
         rectified = SolarReprojector.rectify_patch(gray, int(px), int(py), 512, cx, cy, r)
         ImageProcessor.show_image(rectified)
 
-        if not TESTING:
+        if TESTING_FOR_LOOP:
             for cand in merged_candidates:
                 px = cand["cx"]
                 py = cand["cy"]
-                px, py = ImageProcessor.adjust_candidate_center_axiswise(px, py, cx, cy, r, 512, 0.85)
-
-                rectified = SolarReprojector.rectify_patch(gray, int(px), int(py), 512, cx, cy, r)
+                # px, py = ImageProcessor.adjust_candidate_center_axiswise(px, py, cx, cy, r, 512, 0.85)
+                rectified = SolarReprojector.rectify_patch_from_solar_orientation(gray, int(px), int(py), 512, cx, cy, r)
                 print(f"candidate px: {px}")
                 print(f"candidate py: {py}")
 

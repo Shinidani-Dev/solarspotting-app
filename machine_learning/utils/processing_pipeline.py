@@ -153,15 +153,17 @@ class ProcessingPipeline:
             print(f"Path: {img_file}")
 
             img = ImageProcessor.read_normal_image(str(img_file))
+            dt = ImageProcessor.parse_sdo_filename(str(img_file))
+
             gray = ImageProcessor.convert_to_grayscale(img)
-            morphed, disk_mask, cx, cy, r = ProcessingPipeline.process_image_through_segmentation_pipeline_v3(gray, True)
+            morphed, disk_mask, cx, cy, r = ProcessingPipeline.process_image_through_segmentation_pipeline_v3(gray, False)
             candidates = ImageProcessor.detect_candidates(morphed, disk_mask)
             merged_candidates = ImageProcessor.merge_nearby_candidates(candidates, 200, 300)
 
             for cand in merged_candidates:
                 px = cand["cx"]
                 py = cand["cy"]
-                rectified_patch = SolarReprojector.rectify_patch(gray, px, py, 512, cx, cy, r)
+                rectified_patch = SolarReprojector.rectify_patch_from_solar_orientation(gray, px, py, 512, cx, cy, r, dt)
                 patch_out = output_path / f"{img_file.stem}_patch_px{px}_py{py}.jpg"
                 cv2.imwrite(str(patch_out), rectified_patch)
 

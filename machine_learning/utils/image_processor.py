@@ -578,8 +578,6 @@ class ImageProcessor:
 
         mask_in_disk = cv2.bitwise_and(mask, disk_mask)
 
-        ImageProcessor.show_image(mask_in_disk)
-
         num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask_in_disk, connectivity=8)
 
         regions = []
@@ -740,7 +738,6 @@ class ImageProcessor:
             new_y = y_max
 
         return new_x, new_y
-
 
     @staticmethod
     def show_candidates(image: np.ndarray,
