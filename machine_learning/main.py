@@ -23,7 +23,7 @@ img_list = ["data/img/normal/2k/20140209_101500_SDO_2048_00.jpg",
             "data/img/normal/4k/20140607_073000_Ic_flat_4k.jpg"]
 
 TESTING = False
-TESTING_SOLAR = False
+TESTING_SOLAR = True
 TESTING_FOR_LOOP = False
 
 CENTER_X = 117
@@ -31,13 +31,13 @@ CENTER_Y = 1210
 
 
 def main():
-    ProcessingPipeline.process_dataset("data/input", "data/output")
+    # ProcessingPipeline.process_dataset("data/input", "data/output")
 
     if TESTING_SOLAR:
-        img = ImageProcessor.read_normal_image(img_list[0])
-        dt = ImageProcessor.parse_sdo_filename(img_list[0])
+        img = ImageProcessor.read_normal_image(img_list[1])
+        dt = ImageProcessor.parse_sdo_filename(img_list[1])
 
-        morphed, disk_mask, cx, cy, r = ProcessingPipeline.process_image_through_segmentation_pipeline_v3(img, False)
+        morphed, disk_mask, cx, cy, r = ProcessingPipeline.process_image_through_segmentation_pipeline_v3(img, True)
 
         candidates = ImageProcessor.detect_candidates(morphed, disk_mask)
         ImageProcessor.show_candidates(img, candidates)
