@@ -9,6 +9,7 @@ from machine_learning.enums.morpholog_operations import MorphologyOperation
 from machine_learning.utils.solar_reprojector import SolarReprojector
 from pathlib import Path
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 class ProcessingPipeline:
     """Utility-Klasse die die Bildverarbeitungspipeline aufbaut"""
@@ -199,8 +200,8 @@ class ProcessingPipeline:
 
     @staticmethod
     def process_dataset(input_folder: str, output_folder: str, patch_size: int = 512):
-        input_path = Path(input_folder)
-        output_path = Path(output_folder)
+        input_path = Path(PROJECT_ROOT/input_folder)
+        output_path = Path(PROJECT_ROOT/output_folder)
         output_path.mkdir(parents=True, exist_ok=True)
 
         for img_file in input_path.glob("*.jpg"):

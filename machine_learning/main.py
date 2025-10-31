@@ -14,13 +14,14 @@ from machine_learning.enums.morpholog_operations import MorphologyOperation
 
 ML_FOLDER = Path(__file__).resolve().parent
 
-img_list = ["data/img/normal/2k/20140209_101500_SDO_2048_00.jpg",
-            "data/img/normal/2k/20140417_093000_SDO_2048_00.jpg",
-            "data/img/normal/2k/20230714_153000_SDO_2048_00.jpg",
-            "data/img/normal/2k/20250306_083000_SDO_2048_00.jpg",
-            "data/img/normal/2k/20250308_083000_SDO_2048_00.jpg",
-            "data/img/normal/2k/20250407_080000_SDO_2048_00.jpg",
-            "data/img/normal/4k/20140607_073000_Ic_flat_4k.jpg"]
+img_list = ["storage/20140209_101500_SDO_2048_00.jpg",
+            "machine_learning/data/img/normal/2k/20140209_101500_SDO_2048_00.jpg",
+            "machine_learning/data/img/normal/2k/20140417_093000_SDO_2048_00.jpg",
+            "machine_learning/data/img/normal/2k/20230714_153000_SDO_2048_00.jpg",
+            "machine_learning/data/img/normal/2k/20250306_083000_SDO_2048_00.jpg",
+            "machine_learning/data/img/normal/2k/20250308_083000_SDO_2048_00.jpg",
+            "machine_learning/data/img/normal/2k/20250407_080000_SDO_2048_00.jpg",
+            "machine_learning/data/img/normal/4k/20140607_073000_Ic_flat_4k.jpg"]
 
 TESTING = False
 TESTING_SOLAR = False
@@ -31,11 +32,12 @@ CENTER_Y = 1210
 
 
 def main():
-    # ProcessingPipeline.process_dataset("data/input", "data/output")
+    # ProcessingPipeline.process_dataset("storage", "machine_learning/data/output")
+    img = ImageProcessor.read_normal_image(img_list[0])
+    ImageProcessor.show_image(img)
     dt = ImageProcessor.parse_sdo_filename(img_list[0])
-    res = ProcessingPipeline.process_image_from_path(img_list[0], dt, 512)
-    ProcessingPipeline.show_patches_with_metadata(res)
-
+    # res = ProcessingPipeline.process_image_from_path(img_list[0], dt, 512)
+    # ProcessingPipeline.show_patches_with_metadata(res)
 
     if TESTING_SOLAR:
         img = ImageProcessor.read_normal_image(img_list[1])
