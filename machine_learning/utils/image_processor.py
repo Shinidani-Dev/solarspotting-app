@@ -812,6 +812,7 @@ class ImageProcessor:
 
         return mask_in_disk
 
+    @staticmethod
     def parse_sdo_filename(filename: str) -> datetime:
         """
         Extrahiert Datum und Uhrzeit aus SDO-Dateinamen.

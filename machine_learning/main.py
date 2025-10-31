@@ -23,7 +23,7 @@ img_list = ["data/img/normal/2k/20140209_101500_SDO_2048_00.jpg",
             "data/img/normal/4k/20140607_073000_Ic_flat_4k.jpg"]
 
 TESTING = False
-TESTING_SOLAR = True
+TESTING_SOLAR = False
 TESTING_FOR_LOOP = False
 
 CENTER_X = 117
@@ -32,6 +32,10 @@ CENTER_Y = 1210
 
 def main():
     # ProcessingPipeline.process_dataset("data/input", "data/output")
+    dt = ImageProcessor.parse_sdo_filename(img_list[0])
+    res = ProcessingPipeline.process_image_from_path(img_list[0], dt, 512)
+    ProcessingPipeline.show_patches_with_metadata(res)
+
 
     if TESTING_SOLAR:
         img = ImageProcessor.read_normal_image(img_list[1])
