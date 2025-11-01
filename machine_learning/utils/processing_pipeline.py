@@ -171,6 +171,8 @@ class ProcessingPipeline:
             rectified_patch = SolarReprojector.rectify_patch_from_solar_orientation(
                 gray, px, py, patch_size, cx, cy, r, img_date_time
             )
+            patch_out = f"storage/patches/{date_string}_patch_px{px}_py{py}.jpg"
+            cv2.imwrite(str(patch_out), rectified_patch)
 
             success, buffer = cv2.imencode(".jpg", rectified_patch)
             if not success:
