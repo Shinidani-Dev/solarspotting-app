@@ -1,3 +1,4 @@
+from machine_learning import ml_config
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
@@ -8,7 +9,7 @@ from datetime import datetime
 from skimage.filters import threshold_multiotsu
 from machine_learning.enums.morpholog_operations import MorphologyOperation
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 class ImageProcessor:
