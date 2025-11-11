@@ -163,7 +163,7 @@ class ProcessingPipeline:
         candidates = ImageProcessor.detect_candidates(morphed, disk_mask)
         merged_candidates = ImageProcessor.merge_nearby_candidates(candidates, 200, 300)
 
-        date_string = img_date_time.isoformat()
+        date_string = img_date_time.isoformat().replace(":", "")
         patch_results = []
 
         for cand in merged_candidates:
@@ -171,8 +171,6 @@ class ProcessingPipeline:
             rectified_patch = SolarReprojector.rectify_patch_from_solar_orientation(
                 gray, px, py, patch_size, cx, cy, r, img_date_time
             )
-            patch_out = f"storage/patches/{date_string}_patch_px{px}_py{py}.jpg"
-            cv2.imwrite(str(patch_out), rectified_patch)
 
             success, buffer = cv2.imencode(".jpg", rectified_patch)
             if not success:

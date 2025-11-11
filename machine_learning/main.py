@@ -33,10 +33,10 @@ CENTER_Y = 1210
 
 def main():
     # ProcessingPipeline.process_dataset("storage", "machine_learning/data/output")
-    img = ImageProcessor.read_normal_image(img_list[0])
-    ImageProcessor.show_image(img)
-    dt = ImageProcessor.parse_sdo_filename(img_list[0])
-    # res = ProcessingPipeline.process_image_from_path(img_list[0], dt, 512)
+    # img = ImageProcessor.read_normal_image(img_list[0])
+    # ImageProcessor.show_image(img)
+    dt = ImageProcessor.parse_sdo_filename(img_list[1])
+    res = ProcessingPipeline.process_image_from_path(img_list[1], dt, 512)
     # ProcessingPipeline.show_patches_with_metadata(res)
 
     if TESTING_SOLAR:

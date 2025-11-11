@@ -1,15 +1,13 @@
 import platform
 import matplotlib
+import os
 
 
 def configure_matplotlib_backend():
-    if platform.system() == "Darwin":
-        try:
-            matplotlib.use("MacOSX")
-        except Exception:
-            matplotlib.use("Agg")
+    if os.environ.get("DISPLAY") is None and platform.system() != "Windows":
+        matplotlib.use("Agg")  # headless
     else:
-        matplotlib.use("Agg")
+        matplotlib.use("TkAgg")
 
 
 configure_matplotlib_backend()

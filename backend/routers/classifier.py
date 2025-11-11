@@ -1,3 +1,7 @@
+import base64
+
+import cv2
+import numpy as np
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status
 from fastapi.responses import FileResponse
 from datetime import datetime
@@ -185,6 +189,23 @@ async def process_image(
                 "image_base64": str(patch["image_base64"])
             }
             serializable_patches.append(serializable_patch)
+
+        patch_dir = Path(settings.STORAGE_PATH) / "patches"
+        patch_dir.mkdir(parents=True, exist_ok=True)
+
+        for patch in serializable_patches:
+            try:
+                print(patch["filename"])
+
+                patch_path = patch_dir / patch["filename"]
+                # Bild aus Base64 decodieren und speichern
+                img_bytes = base64.b64decode(patch["image_base64"])
+                np_arr = np.frombuffer(img_bytes, np.uint8)
+                img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+                cv2.imwrite(str(patch_path), img)
+                patch["saved_path"] = str(patch_path)
+            except Exception as e:
+                print(f"Failed to save patch {patch['filename']}: {e}")
 
         return {
             "message": "Image processed successfully",
