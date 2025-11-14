@@ -7,6 +7,7 @@ from datetime import datetime
 from machine_learning.utils.image_processor import ImageProcessor
 from machine_learning.enums.morpholog_operations import MorphologyOperation
 from machine_learning.utils.solar_reprojector import SolarReprojector
+from machine_learning.utils.solar_grid_generator import SolarGridGenerator
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -146,7 +147,7 @@ class ProcessingPipeline:
         return morphed, disk_mask, cx, cy, r
 
     @staticmethod
-    def process_single_image(img: np.ndarray, img_date_time: datetime, patch_size: int = 512):
+    def process_single_image(img: np.ndarray, img_date_time: datetime, patch_size: int = 512, ):
         """
         Returns a json object with the recitifed patches and metadata to each patch which then can be further
         processed by the backend or by the frontend.
@@ -163,6 +164,10 @@ class ProcessingPipeline:
         candidates = ImageProcessor.detect_candidates(morphed, disk_mask)
         merged_candidates = ImageProcessor.merge_nearby_candidates(candidates, 200, 300)
 
+        global_grid = SolarGridGenerator.generate_global_grid_15deg(
+            img_date_time, cx, cy, r
+        )
+
         date_string = img_date_time.isoformat().replace(":", "")
         patch_results = []
 
@@ -170,6 +175,20 @@ class ProcessingPipeline:
             px, py = int(cand["cx"]), int(cand["cy"])
             rectified_patch = SolarReprojector.rectify_patch_from_solar_orientation(
                 gray, px, py, patch_size, cx, cy, r, img_date_time
+            )
+
+            patch_x = px - patch_size // 2
+            patch_y = py - patch_size // 2
+
+            patch_grid = SolarGridGenerator.generate_patch_grid(
+                patch_x=patch_x,
+                patch_y=patch_y,
+                patch_size=patch_size,
+                cx=cx,
+                cy=cy,
+                r=r,
+                dt=img_date_time,
+                global_grid=global_grid
             )
 
             success, buffer = cv2.imencode(".jpg", rectified_patch)
@@ -185,6 +204,7 @@ class ProcessingPipeline:
                 "center_x": cx,
                 "center_y": cy,
                 "radius": r,
+                "grid": patch_grid,
                 "image_base64": b64_patch
             })
 
@@ -254,3 +274,124 @@ class ProcessingPipeline:
 
             if key == 27:
                 break
+
+    @staticmethod
+    def process_single_image_from_folder(
+        folder_path: str,
+        index: int,
+        patch_size: int = 512
+    ) -> dict:
+        """
+        Lädt EIN Bild aus einem Ordner anhand des Index
+        und führt die gesamte Pipeline + Grid-Berechnung aus.
+
+        Args:
+            folder_path: Ordner mit Rohbildern
+            index: Index des Bildes in der sortierten Liste
+            patch_size: 512 (default)
+
+        Returns:
+            {
+              "total_images": int,
+              "current_index": int,
+              "file_name": str,
+              "datetime": str,
+              "global_grid": {...},
+              "patches": [...]
+            }
+        """
+
+        folder = Path(folder_path)
+        if not folder.exists():
+            raise FileNotFoundError(f"Folder not found: {folder_path}")
+
+        # 1. Alle Bilder sortiert laden
+        image_files = sorted([
+            f for f in folder.iterdir()
+            if f.suffix.lower() in [".jpg", ".jpeg", ".png", ".tif", ".fits"]
+        ])
+
+        total_images = len(image_files)
+        if total_images == 0:
+            raise ValueError("No images found in folder.")
+
+        # Prevent out-of-range
+        if index < 0:
+            index = 0
+        if index >= total_images:
+            index = total_images - 1
+
+        img_path = image_files[index]
+
+        # 2. Bild laden
+        img = ImageProcessor.read_normal_image(str(img_path))
+
+        # Zeitstempel aus Dateiname extrahieren
+        dt = ImageProcessor.parse_sdo_filename(str(img_path))
+
+        # 3. Segmentation Pipeline
+        gray = ImageProcessor.convert_to_grayscale(img)
+        morphed, disk_mask, cx, cy, r = ProcessingPipeline.process_image_through_segmentation_pipeline_v3(gray, False)
+        candidates = ImageProcessor.detect_candidates(morphed, disk_mask)
+        merged_candidates = ImageProcessor.merge_nearby_candidates(candidates, 200, 300)
+
+        # 4. Globales Grid
+        global_grid = SolarGridGenerator.generate_global_grid_15deg(dt, cx, cy, r)
+
+        # 5. Patches + Patch-Grid
+        patch_results = []
+        date_string = dt.isoformat().replace(":", "")
+
+        for cand in merged_candidates:
+            px, py = int(cand["cx"]), int(cand["cy"])
+
+            # rectified patch
+            rectified = SolarReprojector.rectify_patch_from_solar_orientation(
+                gray, px, py, patch_size, cx, cy, r, dt
+            )
+
+            success, buffer = cv2.imencode(".jpg", rectified)
+            if not success:
+                continue
+            b64_patch = base64.b64encode(buffer).decode("utf-8")
+
+            # patch coords
+            patch_x = px - patch_size // 2
+            patch_y = py - patch_size // 2
+
+            # patch grid
+            patch_grid = SolarGridGenerator.generate_patch_grid(
+                patch_x=patch_x,
+                patch_y=patch_y,
+                patch_size=patch_size,
+                cx=cx,
+                cy=cy,
+                r=r,
+                dt=dt,
+                global_grid=global_grid
+            )
+
+            patch_filename = f"{date_string}_patch_px{px}_py{py}.jpg"
+
+            patch_results.append({
+                "original_image_file": img_path.name,  # <---- FIX 1: store parent image
+                "patch_file": patch_filename,  # <---- FIX 2: REAL patch filename
+                "px": int(px),
+                "py": int(py),
+                "datetime": date_string,
+                "center_x": int(cx),
+                "center_y": int(cy),
+                "radius": float(r),
+                "grid": patch_grid,
+                "image_base64": b64_patch  # rectified patch data
+            })
+
+        # 6. Final response
+        return {
+            "total_images": total_images,
+            "current_index": index,
+            "file_name": img_path.name,  # name of raw image
+            "datetime": date_string,
+            "global_grid": global_grid,
+            "patches": patch_results
+        }
