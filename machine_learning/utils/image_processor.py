@@ -133,6 +133,104 @@ class ImageProcessor:
         return gray
 
     @staticmethod
+    def draw_global_grid(
+        image: np.ndarray,
+        grid: dict,
+        lat_color: tuple = (0, 255, 0),
+        lon_color: tuple = (255, 0, 0),
+        thickness: int = 1
+    ) -> np.ndarray:
+        """
+        Zeichnet die globalen Sonnenraster-Linien in ein Bild hinein.
+        Gibt ein neues Bild zurück (Original bleibt unverändert).
+
+        Args:
+            image: Das 2k Originalbild (grau oder BGR)
+            grid: Ergebnis von generate_global_grid_15deg()
+            lat_color: Farbe für Breitengrade (BGR)
+            lon_color: Farbe für Längengrade (BGR)
+            thickness: Liniendicke
+
+        Returns:
+            new_img: Bild mit eingezeichnetem Grid
+        """
+
+        # Falls Graustufen → in BGR konvertieren
+        if len(image.shape) == 2 or image.shape[2] == 1:
+            img_out = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+        else:
+            img_out = image.copy()
+
+        # --- Breitengrade (lat_lines) ---
+        for line in grid["lat_lines"]:
+            pts = line["points"]
+            if len(pts) < 2:
+                continue
+
+            for i in range(len(pts) - 1):
+                p1 = (int(pts[i]["px"]), int(pts[i]["py"]))
+                p2 = (int(pts[i+1]["px"]), int(pts[i+1]["py"]))
+                cv2.line(img_out, p1, p2, lat_color, thickness)
+
+        # --- Längengrade (lon_lines) ---
+        for line in grid["lon_lines"]:
+            pts = line["points"]
+            if len(pts) < 2:
+                continue
+
+            for i in range(len(pts) - 1):
+                p1 = (int(pts[i]["px"]), int(pts[i]["py"]))
+                p2 = (int(pts[i+1]["px"]), int(pts[i+1]["py"]))
+                cv2.line(img_out, p1, p2, lon_color, thickness)
+
+        return img_out
+
+    @staticmethod
+    def draw_patch_grid(
+        patch_img: np.ndarray,
+        patch_grid: dict,
+        lat_color=(0, 255, 0),
+        lon_color=(255, 0, 0),
+        thickness=1
+    ) -> np.ndarray:
+        """
+        Zeichnet das entzerrte Patch-Grid auf ein rectified Patch.
+        Args:
+            patch_img: 512x512 rectified patch (BGR oder gray)
+            patch_grid: Ergebnis von SolarGridGenerator.generate_patch_grid()
+        """
+
+        # Patch in BGR konvertieren falls Gray
+        if len(patch_img.shape) == 2 or patch_img.shape[2] == 1:
+            img_out = cv2.cvtColor(patch_img, cv2.COLOR_GRAY2BGR)
+        else:
+            img_out = patch_img.copy()
+
+        # --- Breitengrade im Patch ---
+        for line in patch_grid["patch_lat_lines"]:
+            pts = line["points"]
+            if len(pts) < 2:
+                continue
+
+            for i in range(len(pts) - 1):
+                p1 = (int(pts[i]["x"]), int(pts[i]["y"]))
+                p2 = (int(pts[i+1]["x"]), int(pts[i+1]["y"]))
+                cv2.line(img_out, p1, p2, lat_color, thickness)
+
+        # --- Längengrade im Patch ---
+        for line in patch_grid["patch_lon_lines"]:
+            pts = line["points"]
+            if len(pts) < 2:
+                continue
+
+            for i in range(len(pts) - 1):
+                p1 = (int(pts[i]["x"]), int(pts[i]["y"]))
+                p2 = (int(pts[i+1]["x"]), int(pts[i+1]["y"]))
+                cv2.line(img_out, p1, p2, lon_color, thickness)
+
+        return img_out
+
+    @staticmethod
     def overlay_masks(image: np.ndarray,
                       masks: dict,
                       colors: dict = None,

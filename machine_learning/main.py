@@ -1,3 +1,5 @@
+import base64
+
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -11,6 +13,7 @@ from utils.solar_data_manager import SolarDataManager
 from utils.processing_pipeline import ProcessingPipeline
 from utils.solar_reprojector import SolarReprojector
 from machine_learning.enums.morpholog_operations import MorphologyOperation
+from utils.solar_grid_generator import SolarGridGenerator
 
 ML_FOLDER = Path(__file__).resolve().parent
 
@@ -33,10 +36,33 @@ CENTER_Y = 1210
 
 def main():
     # ProcessingPipeline.process_dataset("storage", "machine_learning/data/output")
-    # img = ImageProcessor.read_normal_image(img_list[0])
+    img = ImageProcessor.read_normal_image(img_list[3])
     # ImageProcessor.show_image(img)
-    dt = ImageProcessor.parse_sdo_filename(img_list[1])
-    res = ProcessingPipeline.process_image_from_path(img_list[1], dt, 512)
+    morphed, disk_mask, cx, cy, r = ProcessingPipeline.process_image_through_segmentation_pipeline_v3(img, False)
+    dt = ImageProcessor.parse_sdo_filename(img_list[3])
+    grid = SolarGridGenerator.generate_global_grid_15deg(dt, cx, cy, r)
+    img_with_grid = ImageProcessor.draw_global_grid(img, grid)
+    ImageProcessor.show_image(img_with_grid)
+    patches = ProcessingPipeline.process_single_image(img, dt)
+
+    for patch in patches["patches"]:
+        # 1. Rectified Patch decodieren
+        b64data = patch["image_base64"]
+        img_bytes = base64.b64decode(b64data)
+        np_array = np.frombuffer(img_bytes, dtype=np.uint8)
+        patch_img = cv2.imdecode(np_array, cv2.IMREAD_COLOR)
+
+        # 2. Patch-Grid extrahieren (lat/lon Linien im Patch)
+        patch_grid = patch["grid"]
+
+        # 3. Patch-Grid über Patch zeichnen
+        patch_with_grid = ImageProcessor.draw_patch_grid(patch_img, patch_grid)
+
+        # 4. Anzeigen
+        ImageProcessor.show_image(patch_with_grid)
+
+
+    # res = ProcessingPipeline.process_image_from_path(img_list[1], dt, 512)
     # ProcessingPipeline.show_patches_with_metadata(res)
 
     if TESTING_SOLAR:

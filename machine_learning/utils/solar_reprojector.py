@@ -197,3 +197,53 @@ class SolarReprojector:
         )
 
         return rectified
+
+    @staticmethod
+    def heliographic_to_image(lat, lon, B0, P0, L0, cx, cy, r):
+        """
+        Transformiert heliographische Koordinaten (lat/lon)
+        in Pixelkoordinaten (px/py) auf dem 2k Sonnenbild.
+
+        Args:
+            lat: Breite in Grad
+            lon: Länge in Grad (Stonyhurst)
+            B0: Sonnenneigung
+            P0: Positionswinkel
+            L0: Zentralmeridian
+            cx, cy: Sonnenmittelpunkt im Bild (2k Koordinaten)
+            r: Sonnenradius im 2k Bild
+
+        Returns:
+            (px, py, valid)
+        """
+
+        # --- 1) lat/lon → 3D Koordinaten auf der Kugel ---
+        lat_rad = np.deg2rad(lat)
+        lon_rad = np.deg2rad(lon - L0)   # relativ zum Central Meridian
+
+        # Standard Kugelkoordinaten
+        nx = np.cos(lat_rad) * np.sin(lon_rad)
+        ny = np.sin(lat_rad)
+        nz = np.cos(lat_rad) * np.cos(lon_rad)
+
+        # --- 2) Rotation um B0 (Kippung der Sonne) ---
+        B0_rad = np.deg2rad(B0)
+        y2 = ny * np.cos(B0_rad) - nz * np.sin(B0_rad)
+        z2 = ny * np.sin(B0_rad) + nz * np.cos(B0_rad)
+        x2 = nx
+
+        # --- 3) Rotation um P0 (Positionswinkel) ---
+        P0_rad = np.deg2rad(P0)
+        x3 =  x2 * np.cos(P0_rad) - y2 * np.sin(P0_rad)
+        y3 =  x2 * np.sin(P0_rad) + y2 * np.cos(P0_rad)
+        z3 =  z2
+
+        # --- 4) Check Sichtbarkeit ---
+        if z3 <= 0:
+            return None, None, False
+
+        # --- 5) Projektion in Bildpixel ---
+        px = cx + r * x3
+        py = cy - r * y3
+
+        return float(px), float(py), True
