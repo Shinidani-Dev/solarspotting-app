@@ -277,13 +277,13 @@ class ProcessingPipeline:
 
     @staticmethod
     def process_single_image_from_folder(
-        folder_path: str,
-        index: int,
-        patch_size: int = 512
+            folder_path: str,
+            index: int,
+            patch_size: int = 512
     ) -> dict:
         """
-        Lädt EIN Bild aus einem Ordner anhand des Index
-        und führt die gesamte Pipeline + Grid-Berechnung aus.
+        LÃ¤dt EIN Bild aus einem Ordner anhand des Index
+        und fÃ¼hrt die gesamte Pipeline + Grid-Berechnung aus.
 
         Args:
             folder_path: Ordner mit Rohbildern
@@ -325,6 +325,11 @@ class ProcessingPipeline:
 
         # 2. Bild laden
         img = ImageProcessor.read_normal_image(str(img_path))
+
+        # Encode original image as base64 for frontend display
+        img_resized = ImageProcessor.resize_to_2k(img)
+        success_orig, buffer_orig = cv2.imencode(".jpg", img_resized)
+        b64_original_image = base64.b64encode(buffer_orig).decode("utf-8") if success_orig else ""
 
         # Zeitstempel aus Dateiname extrahieren
         dt = ImageProcessor.parse_sdo_filename(str(img_path))
@@ -383,7 +388,7 @@ class ProcessingPipeline:
                 "center_y": int(cy),
                 "radius": float(r),
                 "grid": patch_grid,
-                "image_base64": b64_patch  # rectified patch data
+                "patch_image_base64": b64_patch  # rectified patch data
             })
 
         # 6. Final response
@@ -391,7 +396,15 @@ class ProcessingPipeline:
             "total_images": total_images,
             "current_index": index,
             "file_name": img_path.name,  # name of raw image
+            "image_base64": b64_original_image,  # base64 of resized original
+            "metadata": {
+                "date": dt.strftime("%Y-%m-%d") if dt else "Unknown",
+                "time": dt.strftime("%H:%M:%S") if dt else "Unknown"
+            },
             "datetime": date_string,
-            "global_grid": global_grid,
+            "global_grid": {
+                **global_grid,
+                "image_shape": [img_resized.shape[0], img_resized.shape[1]]  # [height, width]
+            },
             "patches": patch_results
         }
