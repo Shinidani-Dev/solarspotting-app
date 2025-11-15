@@ -17,7 +17,6 @@ from backend.routers import (
 from backend.app.middleware import setup_middlewares
 from fastapi.staticfiles import StaticFiles
 
-
 LoggingHelper.initialize()
 
 app = FastAPI()
