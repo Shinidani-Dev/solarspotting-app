@@ -323,8 +323,6 @@ async def finalize_dataset(user: CURRENT_ACTIVE_USER):
         "categories": global_categories
     }
 
-
-
 # ===================================================================
 # RESET DATASET
 # ===================================================================
