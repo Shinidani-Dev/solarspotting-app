@@ -50,3 +50,6 @@ weights
 
 # Ignore data folder as it is used for testing purposes
 data/
+
+# Ignore powerpoint
+*.pptx
