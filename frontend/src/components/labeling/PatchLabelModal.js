@@ -4,17 +4,21 @@ import { useState } from 'react';
 import { X, Save, Trash2, Grid as GridIcon, EyeOff as GridOffIcon } from 'lucide-react';
 import BoundingBoxCanvas from '@/components/labeling/BoundingBoxCanvas';
 import labelingService from '@/api/labelingService';
+import Button from '@/components/ui/buttons/Button';
 
 export default function PatchLabelModal({
   patch,
   classes,
   onClose,
-  onLabeled
+  onLabeled,
+  onDeleted
 }) {
   const [showGrid, setShowGrid] = useState(true);
 
-  // Bounding boxes: { class: 'Umbra', bbox: [x, y, w, h] }
+  // Bounding boxes: { class: 'A', bbox: [x, y, w, h] }
   const [boxes, setBoxes] = useState([]);
+  const [selectedClass, setSelectedClass] = useState("");
+
 
   if (!patch) return null;
 
@@ -60,66 +64,83 @@ export default function PatchLabelModal({
   };
 
   const handleDelete = async () => {
+    if (!confirm('Möchten Sie diese Annotation wirklich löschen?')) {
+      return;
+    }
+    
     try {
       await labelingService.deleteAnnotation(patch.patch_file);
+      onDeleted && onDeleted(patch.patch_file);
       setBoxes([]);
       onClose();
     } catch (err) {
       console.error("Fehler beim Löschen:", err);
+
+    if (err?.response?.status === 404) {
+     // Patch existiert nicht mehr → sicher im Frontend entfernen
+     onDeleted && onDeleted(patch.patch_file);
+     setBoxes([]);
+     onClose();
+     return;
+   }
+
       alert("Fehler beim Löschen der Annotation.");
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 z-50 flex justify-center items-center">
-      <div className="bg-slate-900 rounded-xl shadow-xl p-6 w-full max-w-4xl relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+      <div className="bg-slate-900 rounded-xl shadow-xl p-6 w-full max-w-4xl relative max-h-[90vh] overflow-y-auto">
         
         {/* Close Button */}
         <button
-          className="absolute top-4 right-4 text-slate-400 hover:text-amber-300"
+          className="absolute transition-colors top-4 right-4 text-slate-400 hover:text-amber-300"
           onClick={onClose}
         >
           <X size={26} />
         </button>
 
-        <h2 className="text-2xl font-bold text-amber-400 mb-4">
+        <h2 className="mb-4 text-2xl font-bold text-amber-400">
           Patch: {patch.patch_file}
         </h2>
 
         {/* Buttons */}
-        <div className="flex gap-3 mb-4">
-          <button
-            className="btn-secondary flex items-center gap-2"
+        <div className="flex flex-wrap gap-3 mb-4">
+          <Button
+            variant="secondary"
             onClick={() => setShowGrid(g => !g)}
           >
-            {showGrid ? <GridOffIcon size={18} /> : <GridIcon size={18} />}
+            {showGrid ? <GridOffIcon size={18} className="mr-2" /> : <GridIcon size={18} className="mr-2" />}
             {showGrid ? "Grid ausblenden" : "Grid einblenden"}
-          </button>
+          </Button>
 
-          <button
-            className="btn-primary flex items-center gap-2"
+          <Button
+            variant="primary"
             onClick={handleSave}
           >
-            <Save size={18} /> Speichern
-          </button>
+            <Save size={18} className="mr-2" /> 
+            Speichern
+          </Button>
 
-          <button
-            className="btn-secondary flex items-center gap-2 text-red-400"
+          <Button
+            variant="danger"
             onClick={handleDelete}
           >
-            <Trash2 size={18} /> Löschen
-          </button>
+            <Trash2 size={18} className="mr-2" /> 
+            Löschen
+          </Button>
         </div>
 
         {/* Klasse auswählen */}
         <div className="mb-4">
-          <label className="text-slate-300">Klasse auswählen:</label>
+          <label className="form-label">Klasse auswählen:</label>
           <select
             id="classSelect"
-            className="ml-3 input w-64"
-            defaultValue=""
+            className="w-64 form-input"
+            value={selectedClass}
+            onChange={(e) => setSelectedClass(e.target.value)}
           >
-            <option value="">---</option>
+            <option value="">--- Bitte wählen ---</option>
             {classes.map((cls, idx) => (
               <option key={idx} value={cls.name}>
                 {cls.name}
@@ -129,14 +150,15 @@ export default function PatchLabelModal({
         </div>
 
         {/* Canvas Section */}
-        <BoundingBoxCanvas
-          image={imgSrc}
-          grid={patch.grid}
-          showGrid={showGrid}
-          boxes={boxes}
-          setBoxes={setBoxes}
-          classes={classes}
-        />
+          <BoundingBoxCanvas
+            image={imgSrc}
+            grid={patch.grid}
+            showGrid={showGrid}
+            boxes={boxes}
+            setBoxes={setBoxes}
+            classes={classes}
+            selectedClass={selectedClass}
+          />
 
       </div>
     </div>

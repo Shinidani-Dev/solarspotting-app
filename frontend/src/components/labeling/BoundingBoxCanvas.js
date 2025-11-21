@@ -8,7 +8,8 @@ export default function BoundingBoxCanvas({
   showGrid,
   boxes,
   setBoxes,
-  classes
+  classes,
+  selectedClass
 }) {
   const canvasRef = useRef(null);
   const imgRef = useRef(null);
@@ -73,8 +74,6 @@ export default function BoundingBoxCanvas({
 
   // Mouse events
   const handleMouseDown = (e) => {
-    const classSelect = document.getElementById("classSelect");
-    const selectedClass = classSelect.value;
     if (!selectedClass) {
       alert("Bitte zuerst eine Klasse auswählen!");
       return;
@@ -173,7 +172,7 @@ export default function BoundingBoxCanvas({
   };
 
   return (
-    <div className="w-full flex justify-center">
+    <div className="flex justify-center w-full">
       <div className="relative">
         <img
           ref={imgRef}
@@ -185,7 +184,7 @@ export default function BoundingBoxCanvas({
 
         <canvas
           ref={canvasRef}
-          className="rounded border border-slate-700 shadow-lg cursor-crosshair"
+          className="border rounded shadow-lg border-slate-700 cursor-crosshair"
           onMouseDown={handleMouseDown}
           onMouseUp={handleMouseUp}
           onMouseMove={handleMouseMove}

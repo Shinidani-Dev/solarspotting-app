@@ -16,14 +16,7 @@ const labelingService = {
   // -------- 3) Speichere Annotation eines Patch --------
   async saveAnnotation(payload) {
     const formData = new FormData();
-    console.log("HIER");
-    console.log("image_file: " + payload.original_image_file);
-    console.log("patch_file: " + payload.patch_file);
-    console.log("px: " + payload.px);
-    console.log("py: " + payload.py);
-    console.log("annotations: " + payload.annotations);
-    console.log("patch_image_base64: " + payload.patch_image_base64);
-
+    
     formData.append("image_file", payload.original_image_file);
     formData.append("patch_file", payload.patch_file);
     formData.append("px", payload.px);
@@ -42,7 +35,18 @@ const labelingService = {
     }
   },
 
-  // -------- 4) Dataset abschließen --------
+  // -------- 4) Lösche Annotation und Patch --------
+  async deleteAnnotation(patchFile) {
+    try {
+      const res = await api.delete(`/labeling/patch/${patchFile}`);
+      return res.data;
+    } catch (err) {
+      console.error("Fehler beim Löschen (Axios):", err);
+      throw err;
+    }
+  },
+
+  // -------- 5) Dataset abschließen --------
   async finalize() {
     const res = await api.post("/labeling/dataset/finish");
     return res.data;
