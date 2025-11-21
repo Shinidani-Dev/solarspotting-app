@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Grid, Grid as GridIcon, EyeOff as GridOffIcon } from "lucide-react";
+import { Grid as GridIcon, EyeOff as GridOffIcon } from "lucide-react";
+import Button from '@/components/ui/buttons/Button';
 
 export default function OriginalImageViewer({ data }) {
   const [showGrid, setShowGrid] = useState(false);
@@ -12,6 +13,9 @@ export default function OriginalImageViewer({ data }) {
     if (!imgRef.current) return;
 
     const updateSize = () => {
+      // Null-Check hinzugefügt!
+      if (!imgRef.current) return;
+      
       setRenderSize({
         width: imgRef.current.clientWidth,
         height: imgRef.current.clientHeight,
@@ -20,7 +24,13 @@ export default function OriginalImageViewer({ data }) {
 
     updateSize();
 
-    const observer = new ResizeObserver(updateSize);
+    const observer = new ResizeObserver(() => {
+      // Null-Check auch hier!
+      if (imgRef.current) {
+        updateSize();
+      }
+    });
+    
     observer.observe(imgRef.current);
 
     return () => observer.disconnect();
@@ -28,7 +38,7 @@ export default function OriginalImageViewer({ data }) {
 
   if (!data) {
     return (
-      <div className="card p-6 mb-6 text-slate-400">
+      <div className="p-6 mb-6 text-center card text-slate-400">
         Kein Bild geladen…
       </div>
     );
@@ -45,24 +55,33 @@ export default function OriginalImageViewer({ data }) {
   const originalHeight = image_shape?.[0] || 2048;
 
   return (
-    <div className="card p-6 mb-6">
+    <div className="p-6 mb-6 card">
 
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h2 className="text-xl font-bold text-amber-400">Originalbild</h2>
 
-        <button
-          className="btn-secondary flex items-center gap-2"
+        <Button
+          variant="secondary"
           onClick={() => setShowGrid((s) => !s)}
         >
-          {showGrid ? <GridOffIcon size={18} /> : <GridIcon size={18} />}
+          {showGrid ? <GridOffIcon size={18} className="mr-2" /> : <GridIcon size={18} className="mr-2" />}
           {showGrid ? 'Grid ausblenden' : 'Grid einblenden'}
-        </button>
+        </Button>
       </div>
 
-      <div className="text-slate-400 text-sm mb-4">
-        <p>Filename: <span className="text-slate-200">{file_name}</span></p>
-        <p>Datum: <span className="text-slate-200">{metadata.date}</span></p>
-        <p>Uhrzeit: <span className="text-slate-200">{metadata.time}</span></p>
+      <div className="mb-4 space-y-1 text-sm text-slate-400">
+        <p>
+          <span className="text-slate-500">Filename:</span>{' '}
+          <span className="font-mono text-slate-200">{file_name}</span>
+        </p>
+        <p>
+          <span className="text-slate-500">Datum:</span>{' '}
+          <span className="text-slate-200">{metadata.date}</span>
+        </p>
+        <p>
+          <span className="text-slate-500">Uhrzeit:</span>{' '}
+          <span className="text-slate-200">{metadata.time}</span>
+        </p>
       </div>
 
       <div className="relative w-full max-w-3xl mx-auto">
@@ -70,8 +89,17 @@ export default function OriginalImageViewer({ data }) {
         <img
           ref={imgRef}
           src={imgSrc}
-          className="rounded border border-slate-700 shadow-lg w-full"
+          className="w-full border-2 rounded-lg shadow-lg border-slate-700"
           alt="Original Sun"
+          onLoad={() => {
+            // Update size when image is loaded
+            if (imgRef.current) {
+              setRenderSize({
+                width: imgRef.current.clientWidth,
+                height: imgRef.current.clientHeight,
+              });
+            }
+          }}
         />
 
         {showGrid && renderSize.width > 0 && (
@@ -89,7 +117,7 @@ export default function OriginalImageViewer({ data }) {
                       key={`lat-${idx}`}
                       fill="none"
                       stroke="rgba(74,80,255,0.5)"
-                      strokeWidth="1"
+                      strokeWidth="2"
                       points={line.points.map(p => `${p.px},${p.py}`).join(' ')}
                     />
                   ))}
@@ -99,7 +127,7 @@ export default function OriginalImageViewer({ data }) {
                       key={`lon-${idx}`}
                       fill="none"
                       stroke="rgba(74,80,255,0.5)"
-                      strokeWidth="1"
+                      strokeWidth="2"
                       points={line.points.map(p => `${p.px},${p.py}`).join(' ')}
                     />
                   ))}
