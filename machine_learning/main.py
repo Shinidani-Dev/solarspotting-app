@@ -15,6 +15,9 @@ from utils.solar_reprojector import SolarReprojector
 from machine_learning.enums.morpholog_operations import MorphologyOperation
 from utils.solar_grid_generator import SolarGridGenerator
 from utils.dataset_info import DatasetInfo
+from machine_learning.training.config import TrainingConfig
+from machine_learning.training.trainer import TrainingPipeline
+from machine_learning.settings import DATASET_OUTPUT_DIR, PROJECT_ROOT, ML_MODELS_DIR
 
 ML_FOLDER = Path(__file__).resolve().parent
 
@@ -30,13 +33,20 @@ img_list = ["storage/20140209_101500_SDO_2048_00.jpg",
 TESTING = False
 TESTING_SOLAR = False
 TESTING_FOR_LOOP = False
-TESTING_DATASET_INFO = True
+TESTING_DATASET_INFO = False
+Training = True
 
 CENTER_X = 117
 CENTER_Y = 1210
 
 
 def main():
+    print(ML_MODELS_DIR.resolve())
+    if Training:
+        print(DATASET_OUTPUT_DIR.resolve())
+        cfg = TrainingConfig(dataset_path=DATASET_OUTPUT_DIR, device="cpu")
+        TrainingPipeline.train_model(cfg)
+
     # ProcessingPipeline.process_dataset("storage", "machine_learning/data/output")
     # img = ImageProcessor.read_normal_image(img_list[3])
     # ImageProcessor.show_image(img)
