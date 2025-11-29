@@ -2,6 +2,7 @@ import base64
 import json
 import shutil
 import zipfile
+from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import List
@@ -15,7 +16,7 @@ from backend.core.config import settings
 from backend.core.dependencies import CURRENT_ACTIVE_USER
 from machine_learning.utils.processing_pipeline import ProcessingPipeline
 from machine_learning.utils.mapper import to_native
-
+from machine_learning.utils.annotation_balancer import AnnotationBalancer
 
 router = APIRouter(
     prefix="/labeling",
@@ -166,39 +167,35 @@ async def save_patch_annotation(
 # FINISH DATASET → CREATE TRAIN/VAL SPLIT (70/30)
 # ===================================================================
 
+
 @router.post("/dataset/finish", status_code=200)
 async def finalize_dataset(user: CURRENT_ACTIVE_USER):
 
-    # 1. Clean output directory
+    # 1. Clean output dir
     shutil.rmtree(OUTPUT_DIR, ignore_errors=True)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     train_dir = OUTPUT_DIR / "train"
-    val_dir = OUTPUT_DIR / "val"
+    val_dir   = OUTPUT_DIR / "val"
 
     (train_dir / "images").mkdir(parents=True, exist_ok=True)
     (val_dir / "images").mkdir(parents=True, exist_ok=True)
 
-    # 2. Load all annotation files
+    # 2. Load annotation files
     annotation_files = sorted(ANNOTATIONS_DIR.glob("*.json"))
     if not annotation_files:
         raise HTTPException(status_code=400, detail="No annotations found.")
 
-    # 3. First pass: collect ALL categories globally
+    # 3. Parse all annotations and collect classes
     global_categories = {}
     next_cat_id = 1
-
-    # Parse annotations and store metadata
-    parsed_annotations = []  # list of (ann_file, data, categories, patch_file)
+    parsed_annotations = []
 
     for ann_file in annotation_files:
         with open(ann_file, "r") as f:
             data = json.load(f)
 
-        anns = data.get("annotations", [])
-
-        # build global category map
-        for ann in anns:
+        for ann in data.get("annotations", []):
             cls = ann["class"]
             if cls not in global_categories:
                 global_categories[cls] = next_cat_id
@@ -206,36 +203,34 @@ async def finalize_dataset(user: CURRENT_ACTIVE_USER):
 
         parsed_annotations.append((ann_file, data))
 
-    # 4. Shuffle & split 70/30
-    np.random.shuffle(parsed_annotations)
+    # 4. BALANCE BY ANNOTATIONS
+    train_annots, val_annots, stats = AnnotationBalancer.balance_by_annotation(parsed_annotations)
 
-    split_index = int(len(parsed_annotations) * 0.7)
-    train_data = parsed_annotations[:split_index]
-    val_data = parsed_annotations[split_index:]
+    print("[BALANCE-ANNOTATION INFO]", stats)
 
-    # 5. Function to build COCO structure
-    def build_coco(dataset_list, images_dir, output_json):
+    # 5. Build COCO structure per split
+    def build_coco_for_annotations(annots, images_dir, output_json):
 
         images_coco = []
         annotations_coco = []
         ann_id = 1
         img_id = 1
 
-        for ann_file, data in dataset_list:
+        # Group annotations by patch file
+        patch_to_annots = defaultdict(list)
+        for ann in annots:
+            patch_to_annots[ann["patch_file"]].append(ann)
 
-            patch_file = data["patch_file"]
-            anns = data.get("annotations", [])
+        for patch_file, annotations in patch_to_annots.items():
 
             src_patch_path = PATCHES_DIR / patch_file
             if not src_patch_path.exists():
-                print(f"[WARN] Missing patch image: {patch_file}")
+                print("[WARN] Missing patch:", patch_file)
                 continue
 
-            # Copy image
             dst_path = images_dir / patch_file
             shutil.copy(src_patch_path, dst_path)
 
-            # COCO image entry
             images_coco.append({
                 "id": img_id,
                 "file_name": patch_file,
@@ -243,13 +238,12 @@ async def finalize_dataset(user: CURRENT_ACTIVE_USER):
                 "height": 512
             })
 
-            # COCO annotations
-            for ann in anns:
+            for ann in annotations:
                 cls = ann["class"]
                 cat_id = global_categories[cls]
 
                 x, y, w, h = ann["bbox"]
-                area = float(w) * float(h)
+                area = float(w * h)
 
                 annotations_coco.append({
                     "id": ann_id,
@@ -264,18 +258,17 @@ async def finalize_dataset(user: CURRENT_ACTIVE_USER):
 
             img_id += 1
 
-        # Convert categories
+        # Categories
         categories_list = [
             {"id": cid, "name": cname}
             for cname, cid in global_categories.items()
         ]
 
-        # COCO FINAL JSON
         coco = {
             "info": {
                 "description": "SolarSpotting Dataset",
                 "version": "1.0",
-                "year": datetime.now().year
+                "year": datetime.now().year,
             },
             "licenses": [],
             "images": images_coco,
@@ -283,34 +276,27 @@ async def finalize_dataset(user: CURRENT_ACTIVE_USER):
             "categories": categories_list
         }
 
-        # Write COCO json
         with open(output_json, "w") as f:
             json.dump(coco, f, indent=4)
 
         return len(images_coco), len(annotations_coco)
 
-    # 6. Build train and val datasets
-    train_images, train_ann = build_coco(
-        train_data,
-        train_dir / "images",
-        train_dir / "annotations.json"
+    # Build both sets
+    train_images, train_ann = build_coco_for_annotations(
+        train_annots, train_dir / "images", train_dir / "annotations.json"
     )
 
-    val_images, val_ann = build_coco(
-        val_data,
-        val_dir / "images",
-        val_dir / "annotations.json"
+    val_images, val_ann = build_coco_for_annotations(
+        val_annots, val_dir / "images", val_dir / "annotations.json"
     )
 
-    # 7. Create ZIP archive
+    # ZIP result
     zip_path = OUTPUT_DIR / "dataset.zip"
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
-        # Train
         zipf.write(train_dir / "annotations.json", arcname="train/annotations.json")
         for f in (train_dir / "images").iterdir():
             zipf.write(f, arcname=f"train/images/{f.name}")
 
-        # Val
         zipf.write(val_dir / "annotations.json", arcname="val/annotations.json")
         for f in (val_dir / "images").iterdir():
             zipf.write(f, arcname=f"val/images/{f.name}")
@@ -318,15 +304,15 @@ async def finalize_dataset(user: CURRENT_ACTIVE_USER):
     return {
         "message": "Dataset created successfully",
         "zip_file": str(zip_path),
-        "train_images": train_images,
-        "val_images": val_images,
-        "categories": global_categories
+        "train_annotations": train_ann,
+        "val_annotations": val_ann,
+        "balance_stats": stats
     }
+
 
 # ===================================================================
 # RESET DATASET
 # ===================================================================
-
 @router.post("/dataset/reset", status_code=200)
 async def reset_labeling_dataset(user: CURRENT_ACTIVE_USER):
     """Remove all annotations + output; keep raw images."""
