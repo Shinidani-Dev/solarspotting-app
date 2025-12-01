@@ -174,7 +174,7 @@ async def finalize_dataset(user: CURRENT_ACTIVE_USER):
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     train_dir = OUTPUT_DIR / "train"
-    val_dir   = OUTPUT_DIR / "val"
+    val_dir = OUTPUT_DIR / "val"
 
     (train_dir / "images").mkdir(parents=True, exist_ok=True)
     (val_dir / "images").mkdir(parents=True, exist_ok=True)
