@@ -30,7 +30,7 @@ class TrainingPipeline:
             imgsz=config.img_size,
             workers=config.workers,
             device=config.device,
-            project=str((config.dataset_path.parent).resolve()),   # irrelevant, YOLO will dump runs here
+            project=str((config.dataset_path.parent).resolve()),
             name=config.run_name,
             pretrained=True
         )
