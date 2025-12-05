@@ -32,7 +32,8 @@ class TrainingPipeline:
             device=config.device,
             project=str((config.dataset_path.parent).resolve()),
             name=config.run_name,
-            pretrained=True
+            pretrained=True,
+            amp=False
         )
 
         # 5) Best model path
@@ -51,12 +52,20 @@ class TrainingPipeline:
     @staticmethod
     def _create_dataset_yaml(dataset_root: Path) -> Path:
         yaml_path = dataset_root / "dataset.yaml"
+
         yaml_content = {
-            "train": str(dataset_root / "train" / "images"),
-            "val": str(dataset_root / "val" / "images"),
-            "names": ['C', 'A', 'F', 'D', 'H', 'E', 'B'],
+            "path": str(dataset_root.resolve()).replace("\\", "/"),
+            "train": "train/images",
+            "val": "val/images",
+            "train_labels": "train/labels.json",
+            "val_labels": "val/labels.json",
+            "format": "coco",
+            "names": ["C", "A", "F", "D", "H", "E", "B"],
             "nc": 7
         }
+
         with open(yaml_path, "w") as f:
             yaml.dump(yaml_content, f)
+
         return yaml_path
+

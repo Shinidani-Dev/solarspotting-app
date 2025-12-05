@@ -59,7 +59,12 @@ training_status = {
     "finished_at": None,
     "status": "idle",  # idle, running, completed, failed
     "message": None,
-    "result": None
+    "result": None,
+    # Progress tracking
+    "current_epoch": 0,
+    "total_epochs": 0,
+    "progress_percent": 0,
+    "metrics": {}  # Loss, mAP, etc.
 }
 
 training_lock = threading.Lock()
@@ -488,7 +493,7 @@ async def save_patch_annotation(
 
 
 # ===================================================================
-# FINISH DATASET → CREATE TRAIN/VAL SPLIT (70/30)
+# FINISH DATASET → CREATE TRAIN/VAL SPLIT (80/20)
 # ===================================================================
 
 @router.post("/dataset/finish", status_code=200)
@@ -509,11 +514,10 @@ async def finalize_dataset(user: CURRENT_ACTIVE_USER):
         raise HTTPException(status_code=400, detail="No annotations found.")
 
     # 3. First pass: collect ALL categories globally
-    global_categories = {}
-    next_cat_id = 1
+    global_categories = {}   # class_name → new_id
+    next_cat_id = 0          # START AT 0 (YOLO REQUIREMENT)
 
-    # Parse annotations and store metadata
-    parsed_annotations = []  # list of (ann_file, data, categories, patch_file)
+    parsed_annotations = []  # list of (ann_file, data)
 
     for ann_file in annotation_files:
         with open(ann_file, "r") as f:
@@ -521,7 +525,7 @@ async def finalize_dataset(user: CURRENT_ACTIVE_USER):
 
         anns = data.get("annotations", [])
 
-        # build global category map
+        # assign each class a unique ID 0..N-1
         for ann in anns:
             cls = ann["class"]
             if cls not in global_categories:
@@ -530,10 +534,9 @@ async def finalize_dataset(user: CURRENT_ACTIVE_USER):
 
         parsed_annotations.append((ann_file, data))
 
-    # 4. Shuffle & split 70/30
+    # 4. Shuffle & split 80/20
     np.random.shuffle(parsed_annotations)
-
-    split_index = int(len(parsed_annotations) * 0.7)
+    split_index = int(len(parsed_annotations) * 0.8)
     train_data = parsed_annotations[:split_index]
     val_data = parsed_annotations[split_index:]
 
@@ -555,7 +558,7 @@ async def finalize_dataset(user: CURRENT_ACTIVE_USER):
                 print(f"[WARN] Missing patch image: {patch_file}")
                 continue
 
-            # Copy image
+            # Copy patch image
             dst_path = images_dir / patch_file
             shutil.copy(src_patch_path, dst_path)
 
@@ -570,7 +573,7 @@ async def finalize_dataset(user: CURRENT_ACTIVE_USER):
             # COCO annotations
             for ann in anns:
                 cls = ann["class"]
-                cat_id = global_categories[cls]
+                cat_id = global_categories[cls]  # already 0..N-1
 
                 x, y, w, h = ann["bbox"]
                 area = float(w) * float(h)
@@ -588,13 +591,15 @@ async def finalize_dataset(user: CURRENT_ACTIVE_USER):
 
             img_id += 1
 
-        # Convert categories
+        # ------------------------------------------------------------
+        # FIX #1: categories LIST, SORTED BY ID (YOLO REQUIREMENT)
+        # ------------------------------------------------------------
         categories_list = [
             {"id": cid, "name": cname}
-            for cname, cid in global_categories.items()
+            for cname, cid in sorted(global_categories.items(), key=lambda x: x[1])
         ]
 
-        # COCO FINAL JSON
+        # COCO final JSON
         coco = {
             "info": {
                 "description": "SolarSpotting Dataset",
@@ -607,35 +612,28 @@ async def finalize_dataset(user: CURRENT_ACTIVE_USER):
             "categories": categories_list
         }
 
-        # Write COCO json
         with open(output_json, "w") as f:
             json.dump(coco, f, indent=4)
 
         return len(images_coco), len(annotations_coco)
 
-    # 6. Build train and val datasets
+    # 6. Build datasets
     train_images, train_ann = build_coco(
-        train_data,
-        train_dir / "images",
-        train_dir / "annotations.json"
+        train_data, train_dir / "images", train_dir / "labels.json"
     )
 
     val_images, val_ann = build_coco(
-        val_data,
-        val_dir / "images",
-        val_dir / "annotations.json"
+        val_data, val_dir / "images", val_dir / "labels.json"
     )
 
-    # 7. Create ZIP archive
+    # 7. ZIP export
     zip_path = OUTPUT_DIR / "dataset.zip"
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
-        # Train
-        zipf.write(train_dir / "annotations.json", arcname="train/annotations.json")
+        zipf.write(train_dir / "labels.json", arcname="train/labels.json")
         for f in (train_dir / "images").iterdir():
             zipf.write(f, arcname=f"train/images/{f.name}")
 
-        # Val
-        zipf.write(val_dir / "annotations.json", arcname="val/annotations.json")
+        zipf.write(val_dir / "labels.json", arcname="val/labels.json")
         for f in (val_dir / "images").iterdir():
             zipf.write(f, arcname=f"val/images/{f.name}")
 
@@ -653,20 +651,118 @@ async def finalize_dataset(user: CURRENT_ACTIVE_USER):
 # ===================================================================
 
 def _run_training(config: TrainingConfig, job_id: str):
-    """Background training function"""
+    """Background training function with progress tracking via YOLO callbacks"""
     global training_status
 
-    try:
-        result = TrainingPipeline.train_model(config)
+    from ultralytics import YOLO
+    import yaml
 
+    def on_train_epoch_end(trainer):
+        """Callback called after each training epoch"""
         with training_lock:
-            training_status["is_running"] = False
-            training_status["finished_at"] = datetime.now().isoformat()
-            training_status["status"] = "completed"
-            training_status["message"] = "Training completed successfully"
-            training_status["result"] = result
+            current = trainer.epoch + 1
+            total = trainer.epochs
+            training_status["current_epoch"] = current
+            training_status["total_epochs"] = total
+            training_status["progress_percent"] = round((current / total) * 100, 1)
+            training_status["message"] = f"Training... Epoch {current}/{total}"
+
+            # Extract metrics if available
+            if hasattr(trainer, 'metrics') and trainer.metrics:
+                training_status["metrics"] = {
+                    "box_loss": round(float(trainer.loss_items[0]), 4) if hasattr(trainer, 'loss_items') else None,
+                    "cls_loss": round(float(trainer.loss_items[1]), 4) if hasattr(trainer, 'loss_items') and len(
+                        trainer.loss_items) > 1 else None,
+                }
+
+    def on_train_start(trainer):
+        """Callback called when training starts"""
+        with training_lock:
+            training_status["total_epochs"] = trainer.epochs
+            training_status["message"] = f"Training gestartet... 0/{trainer.epochs} Epochs"
+
+    try:
+        # 1) Create dataset yaml
+        dataset_yaml = config.dataset_path / "dataset.yaml"
+
+        with open(config.dataset_path / "train" / "labels.json", "r") as f:
+            data = json.load(f)
+
+        categories = data["categories"]
+
+        # Aus den Kategorien eine sortierte Namensliste bauen (Index == class_id)
+        names_list = [cat["name"] for cat in sorted(categories, key=lambda c: c["id"])]
+
+        yaml_content = {
+            "path": str(config.dataset_path.resolve()).replace("\\", "/"),
+            "train": "train/images",
+            "val": "val/images",
+            "train_labels": "train/labels.json",
+            "val_labels": "val/labels.json",
+            "format": "coco",
+            "names": names_list,
+            "nc": len(names_list),
+        }
+
+        with open(dataset_yaml, "w") as f:
+            yaml.dump(yaml_content, f)
+
+        # 2) Archive old model
+        ModelManager.archive_active_model()
+
+        # 3) Load model
+        with training_lock:
+            training_status["message"] = "Lade Modell..."
+
+        model = YOLO(config.model_arch)
+
+        # 4) Register callbacks
+        model.add_callback("on_train_start", on_train_start)
+        model.add_callback("on_train_epoch_end", on_train_epoch_end)
+
+        # 5) Train
+        with training_lock:
+            training_status["message"] = "Starte Training..."
+            training_status["total_epochs"] = config.epochs
+
+        results = model.train(
+            data=str(dataset_yaml),
+            epochs=config.epochs,
+            batch=config.batch_size,
+            imgsz=config.img_size,
+            device=config.device,
+            project=str(config.dataset_path.parent),
+            name=f"train_{job_id}",
+            pretrained=True,
+            verbose=True
+        )
+
+        # 6) Save best model
+        best_model_path = Path(results.save_dir) / "weights" / "best.pt"
+
+        if best_model_path.exists():
+            ModelManager.save_active_model(best_model_path)
+
+            with training_lock:
+                training_status["is_running"] = False
+                training_status["finished_at"] = datetime.now().isoformat()
+                training_status["status"] = "completed"
+                training_status["progress_percent"] = 100
+                training_status["message"] = "Training erfolgreich abgeschlossen!"
+                training_status["result"] = {
+                    "message": "Training completed successfully",
+                    "active_model": str(ModelManager.get_active_model_path()),
+                    "run_dir": str(results.save_dir),
+                    "epochs_trained": config.epochs
+                }
+        else:
+            raise Exception(f"Best model not found at {best_model_path}")
 
     except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"[TRAINING ERROR] {error_details}")
+
         with training_lock:
             training_status["is_running"] = False
             training_status["finished_at"] = datetime.now().isoformat()
@@ -702,7 +798,7 @@ async def start_training(
     train_dir = OUTPUT_DIR / "train"
     val_dir = OUTPUT_DIR / "val"
 
-    if not (train_dir / "annotations.json").exists():
+    if not (train_dir / "labels.json").exists():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No dataset found. Please finalize dataset first via POST /dataset/finish"
@@ -717,7 +813,7 @@ async def start_training(
         batch_size=request.batch_size if request else 16,
         model_arch=request.model_arch if request else "yolov8n.pt",
         img_size=512,
-        device="cpu" #TODO: <-- zu cuda anpassen sobald bessere
+        device="cpu"
     )
 
     # Generate job ID
@@ -730,8 +826,13 @@ async def start_training(
         training_status["started_at"] = datetime.now().isoformat()
         training_status["finished_at"] = None
         training_status["status"] = "running"
-        training_status["message"] = "Training started"
+        training_status["message"] = "Training wird vorbereitet..."
         training_status["result"] = None
+        # Reset progress
+        training_status["current_epoch"] = 0
+        training_status["total_epochs"] = config.epochs
+        training_status["progress_percent"] = 0
+        training_status["metrics"] = {}
 
     # Start training in background thread
     thread = threading.Thread(
@@ -757,7 +858,7 @@ async def start_training(
 @router.get("/train/status", status_code=200)
 async def get_training_status(user: CURRENT_ACTIVE_USER):
     """
-    Returns the current training status.
+    Returns the current training status with progress information.
 
     Possible statuses:
     - idle: No training has been started
@@ -773,7 +874,12 @@ async def get_training_status(user: CURRENT_ACTIVE_USER):
             "finished_at": training_status["finished_at"],
             "status": training_status["status"],
             "message": training_status["message"],
-            "result": training_status["result"]
+            "result": training_status["result"],
+            # Progress info
+            "current_epoch": training_status["current_epoch"],
+            "total_epochs": training_status["total_epochs"],
+            "progress_percent": training_status["progress_percent"],
+            "metrics": training_status["metrics"]
         }
 
 
@@ -976,7 +1082,7 @@ async def get_dataset_stats(user: CURRENT_ACTIVE_USER):
     annotations = len(list(ANNOTATIONS_DIR.glob("*.json")))
 
     # Check if output dataset exists
-    output_exists = (OUTPUT_DIR / "train" / "annotations.json").exists()
+    output_exists = (OUTPUT_DIR / "train" / "labels.json").exists()
 
     # Count annotations by class
     class_counts = {cls: 0 for cls in SUNSPOT_CLASSES}

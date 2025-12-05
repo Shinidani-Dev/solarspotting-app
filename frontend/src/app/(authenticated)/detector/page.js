@@ -148,7 +148,7 @@ export default function DetectorPage() {
         clearInterval(pollInterval);
         setIsPollingTraining(false);
       }
-    }, 5000);
+    }, 2000); // Poll every 2 seconds for smoother progress updates
 
     return () => clearInterval(pollInterval);
   }, [isPollingTraining]);
@@ -340,27 +340,56 @@ export default function DetectorPage() {
               <h2 className="text-lg font-semibold text-slate-200">Training Status</h2>
             </div>
             {trainingStatus?.is_running ? (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <div className="flex items-center gap-2 text-amber-400">
                   <Loader2 className="animate-spin" size={18} />
                   <span>Training läuft...</span>
                 </div>
+                
+                {/* Progress Bar */}
+                <div className="space-y-1">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-400">
+                      Epoch {trainingStatus.current_epoch || 0} / {trainingStatus.total_epochs || '?'}
+                    </span>
+                    <span className="text-amber-400 font-medium">
+                      {trainingStatus.progress_percent || 0}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-700 rounded-full h-3 overflow-hidden">
+                    <div 
+                      className="bg-amber-500 h-full rounded-full transition-all duration-500 ease-out"
+                      style={{ width: `${trainingStatus.progress_percent || 0}%` }}
+                    />
+                  </div>
+                </div>
+                
                 <p className="text-slate-500 text-sm">
-                  Job ID: {trainingStatus.job_id}
+                  {trainingStatus.message || 'Training wird vorbereitet...'}
                 </p>
-                <p className="text-slate-500 text-sm">
-                  Gestartet: {new Date(trainingStatus.started_at).toLocaleTimeString()}
+                <p className="text-slate-600 text-xs">
+                  Job ID: {trainingStatus.job_id}
                 </p>
               </div>
             ) : trainingStatus?.status === 'completed' ? (
-              <div className="flex items-center gap-2 text-green-400">
-                <CheckCircle size={18} />
-                <span>Letztes Training erfolgreich</span>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-green-400">
+                  <CheckCircle size={18} />
+                  <span>Training erfolgreich!</span>
+                </div>
+                {trainingStatus.result && (
+                  <p className="text-slate-500 text-sm">
+                    {trainingStatus.result.epochs_trained} Epochs trainiert
+                  </p>
+                )}
               </div>
             ) : trainingStatus?.status === 'failed' ? (
-              <div className="text-red-400">
-                <p>Training fehlgeschlagen</p>
-                <p className="text-sm text-slate-500">{trainingStatus.message}</p>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-red-400">
+                  <AlertCircle size={18} />
+                  <span>Training fehlgeschlagen</span>
+                </div>
+                <p className="text-sm text-slate-500 break-words">{trainingStatus.message}</p>
               </div>
             ) : (
               <p className="text-slate-500">Kein Training aktiv</p>
@@ -665,7 +694,7 @@ export default function DetectorPage() {
               Kein Bild verarbeitet
             </h3>
             <p className="text-slate-500">
-              Lade ein SDO Bild hoch und klicke auf Verarbeiten um zu starten.
+              Lade ein SDO Bild hoch und klicke auf verarbeiten um zu starten.
             </p>
           </div>
         )}

@@ -44,7 +44,7 @@ def main():
     print(ML_MODELS_DIR.resolve())
     if Training:
         print(DATASET_OUTPUT_DIR.resolve())
-        cfg = TrainingConfig(dataset_path=DATASET_OUTPUT_DIR, device="cpu")
+        cfg = TrainingConfig(dataset_path=DATASET_OUTPUT_DIR, device="0")
         TrainingPipeline.train_model(cfg)
 
     # ProcessingPipeline.process_dataset("storage", "machine_learning/data/output")
