@@ -709,13 +709,15 @@ async def start_training(
         )
 
     # Prepare training config
+    # Note: Using CPU since CUDA may not be available
+    # Change to "0" or "cuda" if GPU training is needed
     config = TrainingConfig(
         dataset_path=OUTPUT_DIR,
         epochs=request.epochs if request else 50,
         batch_size=request.batch_size if request else 16,
         model_arch=request.model_arch if request else "yolov8n.pt",
         img_size=512,
-        device="auto"
+        device="cpu" #TODO: <-- zu cuda anpassen sobald bessere
     )
 
     # Generate job ID
@@ -879,6 +881,38 @@ async def delete_patch_from_dataset(
         "patch_deleted": patch_deleted,
         "annotation_deleted": annotation_deleted
     }
+
+
+# ===================================================================
+# GET RAW IMAGE
+# ===================================================================
+
+@router.get("/image/{filename}", status_code=200)
+async def get_raw_image(
+        filename: str,
+        user: CURRENT_ACTIVE_USER
+):
+    """
+    Returns a raw SDO image from images_raw folder.
+    """
+    image_path = IMAGES_DIR / filename
+
+    if not image_path.exists() or not image_path.is_file():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Image '{filename}' not found"
+        )
+
+    # Security check
+    try:
+        image_path.resolve().relative_to(IMAGES_DIR.resolve())
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied"
+        )
+
+    return FileResponse(image_path)
 
 
 # ===================================================================
