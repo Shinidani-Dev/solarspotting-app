@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useState, useEffect } from 'react';
 import SidepanelNavItem from '@/components/ui/SidepanelNavItem';
-import { House, Sun, Telescope, UserRound, DoorOpen, Scan, RectangleHorizontal } from 'lucide-react';
+import { House, Sun, Telescope, UserRound, DoorOpen, Scan, RectangleHorizontal, ScanSearch } from 'lucide-react';
 
 export default function AuthenticatedLayout({ children }) {
   const { user, logout } = useAuth();
@@ -28,6 +28,7 @@ export default function AuthenticatedLayout({ children }) {
     { name: 'Profile', href: '/profile', Icon: UserRound },
     { name: 'Classifier', href: '/classifier', Icon: Scan },
     { name: 'Labeling', href: '/labeling', Icon: RectangleHorizontal },
+    { name: 'Detector', href: '/detector', Icon: ScanSearch },
   ];
 
   return (
