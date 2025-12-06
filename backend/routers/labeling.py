@@ -10,6 +10,7 @@ from typing import List, Optional
 
 import cv2
 import numpy as np
+import yaml
 from fastapi import APIRouter, HTTPException, status, Form, UploadFile, File
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -29,6 +30,59 @@ router = APIRouter(
 )
 
 # ===================================================================
+# MODEL CACHING - Lädt Model einmal und hält es im Speicher
+# ===================================================================
+
+_model_cache = {
+    "model": None,
+    "model_path": None,
+    "model_mtime": None,
+    "class_names": None,  # Speichert die Klassennamen vom Model
+    "lock": threading.Lock()
+}
+
+
+def get_cached_model():
+    """
+    Returns a cached YOLO model instance.
+    The model is loaded once and reused for all subsequent requests.
+    If the model file changes (e.g., after retraining), the cache is invalidated.
+
+    Returns:
+        tuple: (model, model_path, class_names) or (None, None, None) if no model
+    """
+    from ultralytics import YOLO
+
+    model_path = ModelManager.get_active_model_path()
+
+    if not model_path.exists():
+        return None, None, None
+
+    model_path_str = str(model_path)
+    model_mtime = model_path.stat().st_mtime
+
+    with _model_cache["lock"]:
+        # Check if we need to reload (first load or model file changed)
+        cached_path = _model_cache.get("model_path")
+        cached_mtime = _model_cache.get("model_mtime")
+
+        if (_model_cache["model"] is None or
+                cached_path != model_path_str or
+                cached_mtime != model_mtime):
+            print(f"[Model Cache] Loading model from {model_path_str}...")
+            model = YOLO(model_path_str)
+            _model_cache["model"] = model
+            _model_cache["model_path"] = model_path_str
+            _model_cache["model_mtime"] = model_mtime
+            # Speichere die Klassennamen vom Model (wichtig für korrekte Zuordnung!)
+            _model_cache["class_names"] = model.names
+            print(f"[Model Cache] Model loaded successfully!")
+            print(f"[Model Cache] Classes: {model.names}")
+
+        return _model_cache["model"], model_path, _model_cache["class_names"]
+
+
+# ===================================================================
 # Directory structure
 # ===================================================================
 
@@ -43,7 +97,7 @@ for p in [DATASET_ROOT, IMAGES_DIR, PATCHES_DIR, ANNOTATIONS_DIR, OUTPUT_DIR]:
     p.mkdir(parents=True, exist_ok=True)
 
 # ===================================================================
-# SUNSPOT CLASSES (McIntosh Classification)
+# SUNSPOT CLASSES (McIntosh Classification) - Fallback
 # ===================================================================
 
 SUNSPOT_CLASSES = ["A", "B", "C", "D", "E", "F", "H"]
@@ -91,6 +145,16 @@ class TrainRequest(BaseModel):
     epochs: Optional[int] = 50
     batch_size: Optional[int] = 16
     model_arch: Optional[str] = "yolov8n.pt"
+
+
+class DetectAndSaveRequest(BaseModel):
+    """Request body for /detect-and-save endpoint"""
+    original_image_file: str
+    patch_file: str
+    px: int
+    py: int
+    patch_image_base64: str
+    confidence_threshold: Optional[float] = 0.25
 
 
 # ===================================================================
@@ -267,29 +331,27 @@ async def process_image_to_patches(
 
 
 # ===================================================================
-# DETECT → Run ML Model on a Patch
+# DETECT → Run ML Model on a Patch (CUDA!)
 # ===================================================================
 
 @router.post("/detect", status_code=200)
-async def detect_sunspots_on_patch(
+def detect_sunspots_on_patch(
         user: CURRENT_ACTIVE_USER,
         request: DetectRequest
 ):
     """
     Runs the trained YOLO model on a single patch image.
+    Uses a cached model instance for better performance.
+    Uses GPU (CUDA) for inference.
 
     Input: Base64 encoded patch image
     Output: List of predicted bounding boxes with class and confidence
-
-    Each prediction contains:
-    - bbox: [x, y, width, height] in pixel coordinates
-    - class: Predicted sunspot class (A-H)
-    - confidence: Model confidence score
     """
     try:
-        # Check if model exists
-        model_path = ModelManager.get_active_model_path()
-        if not model_path.exists():
+        # Get cached model (much faster than loading each time!)
+        model, model_path, class_names = get_cached_model()
+
+        if model is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="No trained model available. Please train a model first."
@@ -309,15 +371,12 @@ async def detect_sunspots_on_patch(
                 detail=f"Invalid base64 image: {str(e)}"
             )
 
-        # Load YOLO model and run inference
-        from ultralytics import YOLO
-        model = YOLO(str(model_path))
-
-        # Run prediction
+        # Run prediction with CUDA!
         results = model.predict(
             img,
             conf=request.confidence_threshold,
-            verbose=False
+            verbose=False,
+            device='cuda:0'  # GPU für schnelle Inference!
         )
 
         # Parse results
@@ -326,22 +385,19 @@ async def detect_sunspots_on_patch(
             boxes = results[0].boxes
 
             for i in range(len(boxes)):
-                # Get box coordinates (xyxy format)
                 xyxy = boxes.xyxy[i].cpu().numpy()
                 x1, y1, x2, y2 = xyxy
 
-                # Convert to [x, y, width, height] format
                 x = float(x1)
                 y = float(y1)
                 w = float(x2 - x1)
                 h = float(y2 - y1)
 
-                # Get class and confidence
                 cls_id = int(boxes.cls[i].cpu().numpy())
                 conf = float(boxes.conf[i].cpu().numpy())
 
-                # Map class ID to class name
-                class_name = SUNSPOT_CLASSES[cls_id] if cls_id < len(SUNSPOT_CLASSES) else f"Unknown_{cls_id}"
+                # Nutze die Klassennamen vom Model (nicht SUNSPOT_CLASSES!)
+                class_name = class_names.get(cls_id, f"Unknown_{cls_id}")
 
                 predictions.append({
                     "bbox": [x, y, w, h],
@@ -361,6 +417,121 @@ async def detect_sunspots_on_patch(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Detection error: {str(e)}"
+        )
+
+
+# ===================================================================
+# DETECT AND SAVE → Combined workflow for Auto-Detect
+# ===================================================================
+
+@router.post("/detect-and-save", status_code=200)
+def detect_and_save_annotation(
+        user: CURRENT_ACTIVE_USER,
+        request: DetectAndSaveRequest
+):
+    """
+    Combined workflow for Auto-Detect:
+    1. Save the patch image to storage/datasets/patches
+    2. Run ML detection on the patch (with CUDA!)
+    3. Create/update annotation file in storage/datasets/annotations
+    4. Return the annotation with predictions
+
+    This is more efficient than separate save + detect calls.
+    """
+    try:
+        # === Step 1: Save the patch image ===
+        patch_path = PATCHES_DIR / request.patch_file
+
+        try:
+            img_bytes = base64.b64decode(request.patch_image_base64)
+            with open(patch_path, "wb") as f:
+                f.write(img_bytes)
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Failed to save patch image: {str(e)}"
+            )
+
+        # === Step 2: Run ML Detection with CUDA ===
+        predictions = []
+        model_path_str = "No model"
+
+        model, model_path, class_names = get_cached_model()
+
+        if model is not None:
+            # Decode image for prediction
+            np_arr = np.frombuffer(img_bytes, dtype=np.uint8)
+            img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+
+            if img is not None:
+                results = model.predict(
+                    img,
+                    conf=request.confidence_threshold,
+                    verbose=False,
+                    device='cuda:0'  # GPU für schnelle Inference!
+                )
+
+                if len(results) > 0 and results[0].boxes is not None:
+                    boxes = results[0].boxes
+
+                    for i in range(len(boxes)):
+                        xyxy = boxes.xyxy[i].cpu().numpy()
+                        x1, y1, x2, y2 = xyxy
+
+                        x = float(x1)
+                        y = float(y1)
+                        w = float(x2 - x1)
+                        h = float(y2 - y1)
+
+                        cls_id = int(boxes.cls[i].cpu().numpy())
+                        conf = float(boxes.conf[i].cpu().numpy())
+
+                        # Nutze die Klassennamen vom Model!
+                        class_name = class_names.get(cls_id, f"Unknown_{cls_id}")
+
+                        predictions.append({
+                            "bbox": [x, y, w, h],
+                            "class": class_name,
+                            "confidence": round(conf, 4)
+                        })
+
+                model_path_str = str(model_path)
+
+        # === Step 3: Create/Update Annotation File (JSON für Frontend) ===
+        annotation_data = {
+            "original_image_file": request.original_image_file,
+            "patch_file": request.patch_file,
+            "px": request.px,
+            "py": request.py,
+            "annotations": [
+                {"class": p["class"], "bbox": p["bbox"]}
+                for p in predictions
+            ],
+            "auto_detected": True,
+            "model_path": model_path_str
+        }
+
+        ann_path = ANNOTATIONS_DIR / f"{request.patch_file}.json"
+        with open(ann_path, "w") as f:
+            json.dump(annotation_data, f, indent=2)
+
+        # === Step 4: Return Result ===
+        return {
+            "success": True,
+            "patch_saved": str(patch_path),
+            "annotation_saved": str(ann_path),
+            "predictions": predictions,
+            "total_detections": len(predictions),
+            "model_available": model is not None,
+            "annotation": annotation_data
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Detect and save error: {str(e)}"
         )
 
 
@@ -416,7 +587,7 @@ async def load_image_for_labeling(index: int, user: CURRENT_ACTIVE_USER):
 
 
 # ===================================================================
-# SAVE PATCH ANNOTATIONS
+# SAVE PATCH ANNOTATIONS (JSON Format für Frontend)
 # ===================================================================
 
 @router.post("/label", status_code=200)
@@ -432,6 +603,8 @@ async def save_patch_annotation(
     """
     Speichert Annotation + Patch-Bild.
     Falls bereits vorhanden, wird überschrieben.
+
+    Annotations werden als JSON gespeichert (für Frontend Kompatibilität).
     """
 
     # Validate annotation JSON
@@ -445,331 +618,48 @@ async def save_patch_annotation(
             detail="Invalid annotation JSON format."
         )
 
-    # 1. Save annotation
+    # 1. Save annotation (JSON Format)
     ann_dir = Path(settings.STORAGE_PATH) / "datasets" / "annotations"
     ann_dir.mkdir(parents=True, exist_ok=True)
 
-    ann_path = ann_dir / f"{patch_file}.json"
-
-    annotation_payload = {
-        "original_image": image_file,
+    ann_data = {
+        "original_image_file": image_file,
         "patch_file": patch_file,
         "px": px,
         "py": py,
-        "annotations": ann_list,
+        "annotations": ann_list
     }
 
+    ann_path = ann_dir / f"{patch_file}.json"
     with open(ann_path, "w") as f:
-        json.dump(annotation_payload, f, indent=2)
+        json.dump(ann_data, f, indent=2)
 
-    # 2. Save patch image (base64)
-    patch_dir = Path(settings.STORAGE_PATH) / "datasets" / "patches"
-    patch_dir.mkdir(parents=True, exist_ok=True)
+    # 2. Save patch image
+    patches_dir = Path(settings.STORAGE_PATH) / "datasets" / "patches"
+    patches_dir.mkdir(parents=True, exist_ok=True)
 
-    patch_image_path = patch_dir / patch_file
-
+    patch_path = patches_dir / patch_file
     try:
         img_bytes = base64.b64decode(patch_image_base64)
-        np_arr = np.frombuffer(img_bytes, dtype=np.uint8)
-        img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-
-        if img is None:
-            raise ValueError("Failed to decode patch image")
-
-        cv2.imwrite(str(patch_image_path), img)
-
+        with open(patch_path, "wb") as f:
+            f.write(img_bytes)
     except Exception as e:
         raise HTTPException(
-            status_code=400,
+            status_code=500,
             detail=f"Failed to save patch image: {e}"
         )
 
     return {
-        "message": "Patch and annotation saved",
-        "patch_file": patch_file,
-        "annotation_file": ann_path.name,
-        "overwritten": ann_path.exists()
+        "message": "Annotation saved successfully",
+        "annotation_file": str(ann_path),
+        "patch_file": str(patch_path),
+        "annotations_count": len(ann_list)
     }
 
 
 # ===================================================================
-# FINISH DATASET → CREATE TRAIN/VAL SPLIT (80/20)
+# TRAINING ENDPOINTS
 # ===================================================================
-
-@router.post("/dataset/finish", status_code=200)
-async def finalize_dataset(user: CURRENT_ACTIVE_USER):
-    # 1. Clean output directory
-    shutil.rmtree(OUTPUT_DIR, ignore_errors=True)
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-
-    train_dir = OUTPUT_DIR / "train"
-    val_dir = OUTPUT_DIR / "val"
-
-    (train_dir / "images").mkdir(parents=True, exist_ok=True)
-    (val_dir / "images").mkdir(parents=True, exist_ok=True)
-
-    # 2. Load all annotation files
-    annotation_files = sorted(ANNOTATIONS_DIR.glob("*.json"))
-    if not annotation_files:
-        raise HTTPException(status_code=400, detail="No annotations found.")
-
-    # 3. First pass: collect ALL categories globally
-    global_categories = {}   # class_name → new_id
-    next_cat_id = 0          # START AT 0 (YOLO REQUIREMENT)
-
-    parsed_annotations = []  # list of (ann_file, data)
-
-    for ann_file in annotation_files:
-        with open(ann_file, "r") as f:
-            data = json.load(f)
-
-        anns = data.get("annotations", [])
-
-        # assign each class a unique ID 0..N-1
-        for ann in anns:
-            cls = ann["class"]
-            if cls not in global_categories:
-                global_categories[cls] = next_cat_id
-                next_cat_id += 1
-
-        parsed_annotations.append((ann_file, data))
-
-    # 4. Shuffle & split 80/20
-    np.random.shuffle(parsed_annotations)
-    split_index = int(len(parsed_annotations) * 0.8)
-    train_data = parsed_annotations[:split_index]
-    val_data = parsed_annotations[split_index:]
-
-    # 5. Function to build COCO structure
-    def build_coco(dataset_list, images_dir, output_json):
-
-        images_coco = []
-        annotations_coco = []
-        ann_id = 1
-        img_id = 1
-
-        for ann_file, data in dataset_list:
-
-            patch_file = data["patch_file"]
-            anns = data.get("annotations", [])
-
-            src_patch_path = PATCHES_DIR / patch_file
-            if not src_patch_path.exists():
-                print(f"[WARN] Missing patch image: {patch_file}")
-                continue
-
-            # Copy patch image
-            dst_path = images_dir / patch_file
-            shutil.copy(src_patch_path, dst_path)
-
-            # COCO image entry
-            images_coco.append({
-                "id": img_id,
-                "file_name": patch_file,
-                "width": 512,
-                "height": 512
-            })
-
-            # COCO annotations
-            for ann in anns:
-                cls = ann["class"]
-                cat_id = global_categories[cls]  # already 0..N-1
-
-                x, y, w, h = ann["bbox"]
-                area = float(w) * float(h)
-
-                annotations_coco.append({
-                    "id": ann_id,
-                    "image_id": img_id,
-                    "category_id": cat_id,
-                    "bbox": [float(x), float(y), float(w), float(h)],
-                    "area": area,
-                    "iscrowd": 0
-                })
-
-                ann_id += 1
-
-            img_id += 1
-
-        # ------------------------------------------------------------
-        # FIX #1: categories LIST, SORTED BY ID (YOLO REQUIREMENT)
-        # ------------------------------------------------------------
-        categories_list = [
-            {"id": cid, "name": cname}
-            for cname, cid in sorted(global_categories.items(), key=lambda x: x[1])
-        ]
-
-        # COCO final JSON
-        coco = {
-            "info": {
-                "description": "SolarSpotting Dataset",
-                "version": "1.0",
-                "year": datetime.now().year
-            },
-            "licenses": [],
-            "images": images_coco,
-            "annotations": annotations_coco,
-            "categories": categories_list
-        }
-
-        with open(output_json, "w") as f:
-            json.dump(coco, f, indent=4)
-
-        return len(images_coco), len(annotations_coco)
-
-    # 6. Build datasets
-    train_images, train_ann = build_coco(
-        train_data, train_dir / "images", train_dir / "labels.json"
-    )
-
-    val_images, val_ann = build_coco(
-        val_data, val_dir / "images", val_dir / "labels.json"
-    )
-
-    # 7. ZIP export
-    zip_path = OUTPUT_DIR / "dataset.zip"
-    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
-        zipf.write(train_dir / "labels.json", arcname="train/labels.json")
-        for f in (train_dir / "images").iterdir():
-            zipf.write(f, arcname=f"train/images/{f.name}")
-
-        zipf.write(val_dir / "labels.json", arcname="val/labels.json")
-        for f in (val_dir / "images").iterdir():
-            zipf.write(f, arcname=f"val/images/{f.name}")
-
-    return {
-        "message": "Dataset created successfully",
-        "zip_file": str(zip_path),
-        "train_images": train_images,
-        "val_images": val_images,
-        "categories": global_categories
-    }
-
-
-# ===================================================================
-# TRAIN MODEL (Async)
-# ===================================================================
-
-def _run_training(config: TrainingConfig, job_id: str):
-    """Background training function with progress tracking via YOLO callbacks"""
-    global training_status
-
-    from ultralytics import YOLO
-    import yaml
-
-    def on_train_epoch_end(trainer):
-        """Callback called after each training epoch"""
-        with training_lock:
-            current = trainer.epoch + 1
-            total = trainer.epochs
-            training_status["current_epoch"] = current
-            training_status["total_epochs"] = total
-            training_status["progress_percent"] = round((current / total) * 100, 1)
-            training_status["message"] = f"Training... Epoch {current}/{total}"
-
-            # Extract metrics if available
-            if hasattr(trainer, 'metrics') and trainer.metrics:
-                training_status["metrics"] = {
-                    "box_loss": round(float(trainer.loss_items[0]), 4) if hasattr(trainer, 'loss_items') else None,
-                    "cls_loss": round(float(trainer.loss_items[1]), 4) if hasattr(trainer, 'loss_items') and len(
-                        trainer.loss_items) > 1 else None,
-                }
-
-    def on_train_start(trainer):
-        """Callback called when training starts"""
-        with training_lock:
-            training_status["total_epochs"] = trainer.epochs
-            training_status["message"] = f"Training gestartet... 0/{trainer.epochs} Epochs"
-
-    try:
-        # 1) Create dataset yaml
-        dataset_yaml = config.dataset_path / "dataset.yaml"
-
-        with open(config.dataset_path / "train" / "labels.json", "r") as f:
-            data = json.load(f)
-
-        categories = data["categories"]
-
-        # Aus den Kategorien eine sortierte Namensliste bauen (Index == class_id)
-        names_list = [cat["name"] for cat in sorted(categories, key=lambda c: c["id"])]
-
-        yaml_content = {
-            "path": str(config.dataset_path.resolve()).replace("\\", "/"),
-            "train": "train/images",
-            "val": "val/images",
-            "train_labels": "train/labels.json",
-            "val_labels": "val/labels.json",
-            "format": "coco",
-            "names": names_list,
-            "nc": len(names_list),
-        }
-
-        with open(dataset_yaml, "w") as f:
-            yaml.dump(yaml_content, f)
-
-        # 2) Archive old model
-        ModelManager.archive_active_model()
-
-        # 3) Load model
-        with training_lock:
-            training_status["message"] = "Lade Modell..."
-
-        model = YOLO(config.model_arch)
-
-        # 4) Register callbacks
-        model.add_callback("on_train_start", on_train_start)
-        model.add_callback("on_train_epoch_end", on_train_epoch_end)
-
-        # 5) Train
-        with training_lock:
-            training_status["message"] = "Starte Training..."
-            training_status["total_epochs"] = config.epochs
-
-        results = model.train(
-            data=str(dataset_yaml),
-            epochs=config.epochs,
-            batch=config.batch_size,
-            imgsz=config.img_size,
-            device=config.device,
-            project=str(config.dataset_path.parent),
-            name=f"train_{job_id}",
-            pretrained=True,
-            verbose=True
-        )
-
-        # 6) Save best model
-        best_model_path = Path(results.save_dir) / "weights" / "best.pt"
-
-        if best_model_path.exists():
-            ModelManager.save_active_model(best_model_path)
-
-            with training_lock:
-                training_status["is_running"] = False
-                training_status["finished_at"] = datetime.now().isoformat()
-                training_status["status"] = "completed"
-                training_status["progress_percent"] = 100
-                training_status["message"] = "Training erfolgreich abgeschlossen!"
-                training_status["result"] = {
-                    "message": "Training completed successfully",
-                    "active_model": str(ModelManager.get_active_model_path()),
-                    "run_dir": str(results.save_dir),
-                    "epochs_trained": config.epochs
-                }
-        else:
-            raise Exception(f"Best model not found at {best_model_path}")
-
-    except Exception as e:
-        import traceback
-        error_details = traceback.format_exc()
-        print(f"[TRAINING ERROR] {error_details}")
-
-        with training_lock:
-            training_status["is_running"] = False
-            training_status["finished_at"] = datetime.now().isoformat()
-            training_status["status"] = "failed"
-            training_status["message"] = str(e)
-            training_status["result"] = None
-
 
 @router.post("/train", status_code=202)
 async def start_training(
@@ -777,7 +667,7 @@ async def start_training(
         request: TrainRequest = None
 ):
     """
-    Starts model training asynchronously.
+    Starts model training asynchronously with CUDA.
 
     The training runs in the background. Use GET /train/status to check progress.
 
@@ -798,22 +688,20 @@ async def start_training(
     train_dir = OUTPUT_DIR / "train"
     val_dir = OUTPUT_DIR / "val"
 
-    if not (train_dir / "labels.json").exists():
+    if not (train_dir / "labels").exists():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No dataset found. Please finalize dataset first via POST /dataset/finish"
         )
 
-    # Prepare training config
-    # Note: Using CPU since CUDA may not be available
-    # Change to "0" or "cuda" if GPU training is needed
+    # Prepare training config - MIT CUDA!
     config = TrainingConfig(
         dataset_path=OUTPUT_DIR,
         epochs=request.epochs if request else 50,
         batch_size=request.batch_size if request else 16,
         model_arch=request.model_arch if request else "yolov8n.pt",
         img_size=512,
-        device="cpu"
+        device="cuda:0"
     )
 
     # Generate job ID
@@ -850,7 +738,8 @@ async def start_training(
             "epochs": config.epochs,
             "batch_size": config.batch_size,
             "model_arch": config.model_arch,
-            "img_size": config.img_size
+            "img_size": config.img_size,
+            "device": config.device
         }
     }
 
@@ -903,12 +792,37 @@ async def get_model_info(user: CURRENT_ACTIVE_USER):
     # Get file stats
     stat = model_path.stat()
 
+    # Try to get class names from cached model
+    _, _, class_names = get_cached_model()
+
     return {
         "model_available": True,
         "model_path": str(model_path),
         "model_size_mb": round(stat.st_size / (1024 * 1024), 2),
         "last_modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
-        "classes": SUNSPOT_CLASSES
+        "classes": list(class_names.values()) if class_names else SUNSPOT_CLASSES
+    }
+
+
+@router.post("/model/preload", status_code=200)
+async def preload_model(user: CURRENT_ACTIVE_USER):
+    """
+    Preloads the ML model into cache.
+    Call this after login or on app startup for faster first detection.
+    """
+    model, model_path, class_names = get_cached_model()
+
+    if model is None:
+        return {
+            "success": False,
+            "message": "No model available to preload"
+        }
+
+    return {
+        "success": True,
+        "message": "Model preloaded successfully",
+        "model_path": str(model_path),
+        "classes": list(class_names.values()) if class_names else []
     }
 
 
@@ -932,17 +846,7 @@ async def delete_patch_from_dataset(
 ):
     """
     Löscht einen Patch + die zugehörige Annotation aus dem Dataset.
-
-    Args:
-        patch_file: Dateiname des Patches (z.B. "20240809_154500_patch_px221_py606.jpg")
-
-    Returns:
-        {
-          "patch_deleted": true/false,
-          "annotation_deleted": true/false
-        }
     """
-
     datasets_dir = Path(settings.STORAGE_PATH) / "datasets"
 
     patches_dir = datasets_dir / "patches"
@@ -1032,12 +936,6 @@ async def get_annotation_for_patch(
 ):
     """
     Returns the annotation for a specific patch if it exists.
-
-    Args:
-        patch_filename: The filename of the patch (e.g., "2024-01-01T120000_patch_px500_py600.jpg")
-
-    Returns:
-        The annotation data if found, or 404 if not exists.
     """
     ann_path = ANNOTATIONS_DIR / f"{patch_filename}.json"
 
@@ -1081,8 +979,9 @@ async def get_dataset_stats(user: CURRENT_ACTIVE_USER):
     # Count annotations
     annotations = len(list(ANNOTATIONS_DIR.glob("*.json")))
 
-    # Check if output dataset exists
-    output_exists = (OUTPUT_DIR / "train" / "labels.json").exists()
+    # Check if output dataset exists (look for labels folder, not just labels.json)
+    output_exists = (OUTPUT_DIR / "train" / "labels").exists() and len(
+        list((OUTPUT_DIR / "train" / "labels").glob("*.txt"))) > 0
 
     # Count annotations by class
     class_counts = {cls: 0 for cls in SUNSPOT_CLASSES}
@@ -1105,3 +1004,380 @@ async def get_dataset_stats(user: CURRENT_ACTIVE_USER):
         "class_distribution": class_counts,
         "output_dataset_ready": output_exists
     }
+
+
+# ===================================================================
+# FINALIZE DATASET - Erstellt YOLO .txt Labels!
+# ===================================================================
+
+@router.post("/dataset/finish", status_code=200)
+async def finalize_dataset(user: CURRENT_ACTIVE_USER):
+    """
+    Finalisiert das Dataset für YOLO Training.
+
+    Erstellt:
+    - train/images/ und val/images/ mit den Patch-Bildern
+    - train/labels/ und val/labels/ mit YOLO .txt Dateien (WICHTIG!)
+    - train/labels.json und val/labels.json (COCO Format für Referenz)
+    - dataset.yaml für YOLO (OHNE format: coco!)
+    """
+
+    # 1. Clean output directory
+    shutil.rmtree(OUTPUT_DIR, ignore_errors=True)
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    train_dir = OUTPUT_DIR / "train"
+    val_dir = OUTPUT_DIR / "val"
+
+    # Erstelle BEIDE: images UND labels Ordner!
+    (train_dir / "images").mkdir(parents=True, exist_ok=True)
+    (train_dir / "labels").mkdir(parents=True, exist_ok=True)
+    (val_dir / "images").mkdir(parents=True, exist_ok=True)
+    (val_dir / "labels").mkdir(parents=True, exist_ok=True)
+
+    # 2. Load all annotation files
+    annotation_files = sorted(ANNOTATIONS_DIR.glob("*.json"))
+    if not annotation_files:
+        raise HTTPException(status_code=400, detail="No annotations found.")
+
+    # 3. First pass: collect ALL categories globally
+    global_categories = {}  # class_name → new_id
+    next_cat_id = 0  # START AT 0 (YOLO REQUIREMENT)
+
+    parsed_annotations = []  # list of (ann_file, data)
+
+    for ann_file in annotation_files:
+        with open(ann_file, "r") as f:
+            data = json.load(f)
+
+        anns = data.get("annotations", [])
+
+        # assign each class a unique ID 0..N-1
+        for ann in anns:
+            cls = ann["class"]
+            if cls not in global_categories:
+                global_categories[cls] = next_cat_id
+                next_cat_id += 1
+
+        parsed_annotations.append((ann_file, data))
+
+    # 4. Shuffle & split 80/20
+    np.random.shuffle(parsed_annotations)
+    split_index = int(len(parsed_annotations) * 0.8)
+    train_data = parsed_annotations[:split_index]
+    val_data = parsed_annotations[split_index:]
+
+    # 5. Function to build dataset with BOTH COCO JSON and YOLO .txt labels
+    def build_dataset(dataset_list, images_dir, labels_dir, output_json):
+        """
+        Erstellt:
+        - Kopiert Bilder nach images_dir
+        - Erstellt YOLO .txt Labels in labels_dir
+        - Erstellt COCO JSON in output_json (für Referenz)
+        """
+
+        images_coco = []
+        annotations_coco = []
+        ann_id = 1
+        img_id = 1
+
+        img_width = 512  # Patch size
+        img_height = 512
+
+        for ann_file, data in dataset_list:
+
+            patch_file = data["patch_file"]
+            anns = data.get("annotations", [])
+
+            src_patch_path = PATCHES_DIR / patch_file
+            if not src_patch_path.exists():
+                print(f"[WARN] Missing patch image: {patch_file}")
+                continue
+
+            # Copy patch image
+            dst_path = images_dir / patch_file
+            shutil.copy(src_patch_path, dst_path)
+
+            # ============================================
+            # YOLO .txt Label-Datei erstellen
+            # ============================================
+            # Format: class_id x_center y_center width height
+            # Alle Werte normalisiert (0-1)
+
+            label_filename = Path(patch_file).stem + ".txt"
+            label_path = labels_dir / label_filename
+
+            yolo_lines = []
+            for ann in anns:
+                cls = ann["class"]
+                cat_id = global_categories[cls]  # 0-indexed class ID
+
+                # bbox: [x, y, width, height] in pixels (top-left corner)
+                x, y, w, h = ann["bbox"]
+
+                # Convert to YOLO format: x_center, y_center, width, height (normalized)
+                x_center = (x + w / 2) / img_width
+                y_center = (y + h / 2) / img_height
+                w_norm = w / img_width
+                h_norm = h / img_height
+
+                # Clamp values to [0, 1]
+                x_center = max(0, min(1, x_center))
+                y_center = max(0, min(1, y_center))
+                w_norm = max(0, min(1, w_norm))
+                h_norm = max(0, min(1, h_norm))
+
+                yolo_lines.append(f"{cat_id} {x_center:.6f} {y_center:.6f} {w_norm:.6f} {h_norm:.6f}")
+
+            # Schreibe .txt Datei (auch wenn leer - für "background" Bilder)
+            with open(label_path, "w") as f:
+                f.write("\n".join(yolo_lines))
+
+            # ============================================
+            # COCO Format (für Referenz/Export)
+            # ============================================
+            images_coco.append({
+                "id": img_id,
+                "file_name": patch_file,
+                "width": img_width,
+                "height": img_height
+            })
+
+            for ann in anns:
+                cls = ann["class"]
+                cat_id = global_categories[cls]
+
+                x, y, w, h = ann["bbox"]
+                area = float(w) * float(h)
+
+                annotations_coco.append({
+                    "id": ann_id,
+                    "image_id": img_id,
+                    "category_id": cat_id,
+                    "bbox": [float(x), float(y), float(w), float(h)],
+                    "area": area,
+                    "iscrowd": 0
+                })
+
+                ann_id += 1
+
+            img_id += 1
+
+        # Categories list sorted by ID
+        categories_list = [
+            {"id": cid, "name": cname}
+            for cname, cid in sorted(global_categories.items(), key=lambda x: x[1])
+        ]
+
+        # COCO final JSON (für Referenz)
+        coco = {
+            "info": {
+                "description": "SolarSpotting Dataset",
+                "version": "1.0",
+                "year": datetime.now().year
+            },
+            "licenses": [],
+            "images": images_coco,
+            "annotations": annotations_coco,
+            "categories": categories_list
+        }
+
+        with open(output_json, "w") as f:
+            json.dump(coco, f, indent=4)
+
+        return len(images_coco), len(annotations_coco)
+
+    # 6. Build datasets
+    train_images, train_ann = build_dataset(
+        train_data,
+        train_dir / "images",
+        train_dir / "labels",
+        train_dir / "labels.json"
+    )
+
+    val_images, val_ann = build_dataset(
+        val_data,
+        val_dir / "images",
+        val_dir / "labels",
+        val_dir / "labels.json"
+    )
+
+    # 7. Create dataset.yaml for YOLO - OHNE format: coco!
+    names_list = [
+        cname for cname, cid in sorted(global_categories.items(), key=lambda x: x[1])
+    ]
+
+    yaml_content = {
+        "path": str(OUTPUT_DIR.resolve()).replace("\\", "/"),
+        "train": "train/images",
+        "val": "val/images",
+        # YOLO findet automatisch train/labels und val/labels!
+        "names": names_list,
+        "nc": len(names_list)
+    }
+
+    yaml_path = OUTPUT_DIR / "dataset.yaml"
+    with open(yaml_path, "w") as f:
+        yaml.dump(yaml_content, f, default_flow_style=False)
+
+    # 8. ZIP export
+    zip_path = OUTPUT_DIR / "dataset.zip"
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+        # Images
+        for f in (train_dir / "images").iterdir():
+            zipf.write(f, arcname=f"train/images/{f.name}")
+        for f in (val_dir / "images").iterdir():
+            zipf.write(f, arcname=f"val/images/{f.name}")
+
+        # YOLO Labels (.txt)
+        for f in (train_dir / "labels").iterdir():
+            zipf.write(f, arcname=f"train/labels/{f.name}")
+        for f in (val_dir / "labels").iterdir():
+            zipf.write(f, arcname=f"val/labels/{f.name}")
+
+        # COCO JSON (für Referenz)
+        zipf.write(train_dir / "labels.json", arcname="train/labels.json")
+        zipf.write(val_dir / "labels.json", arcname="val/labels.json")
+
+        # Dataset YAML
+        zipf.write(yaml_path, arcname="dataset.yaml")
+
+    return {
+        "message": "Dataset created successfully",
+        "zip_file": str(zip_path),
+        "train_images": train_images,
+        "train_annotations": train_ann,
+        "val_images": val_images,
+        "val_annotations": val_ann,
+        "categories": global_categories,
+        "dataset_yaml": str(yaml_path)
+    }
+
+
+# ===================================================================
+# TRAINING FUNCTION (Background Thread)
+# ===================================================================
+
+def _run_training(config: TrainingConfig, job_id: str):
+    """Background training function with progress tracking via YOLO callbacks"""
+    global training_status
+
+    from ultralytics import YOLO
+
+    def on_train_epoch_end(trainer):
+        """Callback called after each training epoch"""
+        with training_lock:
+            current = trainer.epoch + 1
+            total = trainer.epochs
+            training_status["current_epoch"] = current
+            training_status["total_epochs"] = total
+            training_status["progress_percent"] = round((current / total) * 100, 1)
+            training_status["message"] = f"Training... Epoch {current}/{total}"
+
+            if hasattr(trainer, 'metrics') and trainer.metrics:
+                training_status["metrics"] = {
+                    "box_loss": round(float(trainer.loss_items[0]), 4) if hasattr(trainer, 'loss_items') else None,
+                    "cls_loss": round(float(trainer.loss_items[1]), 4) if hasattr(trainer, 'loss_items') and len(
+                        trainer.loss_items) > 1 else None,
+                }
+
+    def on_train_start(trainer):
+        """Callback called when training starts"""
+        with training_lock:
+            training_status["total_epochs"] = trainer.epochs
+            training_status["message"] = f"Training gestartet... 0/{trainer.epochs} Epochs"
+
+    try:
+        # Dataset YAML sollte bereits existieren von finalize_dataset
+        dataset_yaml = config.dataset_path / "dataset.yaml"
+
+        if not dataset_yaml.exists():
+            # Fallback: Erstelle YAML falls nicht vorhanden
+            with open(config.dataset_path / "train" / "labels.json", "r") as f:
+                data = json.load(f)
+
+            categories = data["categories"]
+            names_list = [cat["name"] for cat in sorted(categories, key=lambda c: c["id"])]
+
+            # YOLO Format - OHNE format: coco!
+            yaml_content = {
+                "path": str(config.dataset_path.resolve()).replace("\\", "/"),
+                "train": "train/images",
+                "val": "val/images",
+                "names": names_list,
+                "nc": len(names_list)
+            }
+
+            with open(dataset_yaml, "w") as f:
+                yaml.dump(yaml_content, f, default_flow_style=False)
+
+        # 2) Archive old model
+        ModelManager.archive_active_model()
+
+        # 3) Load model
+        with training_lock:
+            training_status["message"] = "Lade Modell..."
+
+        model = YOLO(config.model_arch)
+
+        # 4) Register callbacks
+        model.add_callback("on_train_start", on_train_start)
+        model.add_callback("on_train_epoch_end", on_train_epoch_end)
+
+        # 5) Train with CUDA!
+        with training_lock:
+            training_status["message"] = "Starte Training..."
+            training_status["total_epochs"] = config.epochs
+
+        results = model.train(
+            data=str(dataset_yaml),
+            epochs=config.epochs,
+            batch=config.batch_size,
+            imgsz=config.img_size,
+            device=config.device,  # cuda:0
+            workers=0,  # WICHTIG für Windows!
+            project=str(config.dataset_path.parent),
+            name=f"train_{job_id}",
+            pretrained=True,
+            verbose=True
+        )
+
+        # 6) Save best model
+        best_model_path = Path(results.save_dir) / "weights" / "best.pt"
+
+        if best_model_path.exists():
+            ModelManager.save_active_model(best_model_path)
+
+            # Invalidate model cache so next detection uses new model
+            with _model_cache["lock"]:
+                _model_cache["model"] = None
+                _model_cache["model_path"] = None
+                _model_cache["model_mtime"] = None
+                _model_cache["class_names"] = None
+
+            with training_lock:
+                training_status["is_running"] = False
+                training_status["finished_at"] = datetime.now().isoformat()
+                training_status["status"] = "completed"
+                training_status["progress_percent"] = 100
+                training_status["message"] = "Training erfolgreich abgeschlossen!"
+                training_status["result"] = {
+                    "message": "Training completed successfully",
+                    "active_model": str(ModelManager.get_active_model_path()),
+                    "run_dir": str(results.save_dir),
+                    "epochs_trained": config.epochs
+                }
+        else:
+            raise Exception(f"Best model not found at {best_model_path}")
+
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"[TRAINING ERROR] {error_details}")
+
+        with training_lock:
+            training_status["is_running"] = False
+            training_status["finished_at"] = datetime.now().isoformat()
+            training_status["status"] = "failed"
+            training_status["message"] = str(e)
+            training_status["result"] = None

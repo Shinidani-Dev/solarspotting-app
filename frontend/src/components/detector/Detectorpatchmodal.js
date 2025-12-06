@@ -88,34 +88,63 @@ export default function DetectorPatchModal({
     );
   }
 
-  // Auto-detect using ML model
+  // =============================================
+  // Auto-detect using ML model - COMBINED WORKFLOW
+  // =============================================
   const handleDetect = async () => {
     setIsDetecting(true);
     setError(null);
 
     try {
-      const result = await detectorService.detectOnPatch(patch.image_base64, 0.25);
+      // Use the combined detect-and-save endpoint
+      // This saves the patch, runs detection, and creates the annotation file
+      const result = await detectorService.detectAndSave({
+        original_image_file: patch.original_image_file,
+        patch_file: patch.patch_file,
+        px: patch.px,
+        py: patch.py,
+        patch_image_base64: patch.image_base64,
+        confidence_threshold: 0.25
+      });
+
+      if (!result.model_available) {
+        setError("No trained model available. Please train a model first.");
+        setBoxes([]);
+        return;
+      }
 
       if (result.predictions && result.predictions.length > 0) {
+        // Set boxes from predictions (same format as loading annotation)
         const detectedBoxes = result.predictions.map(pred => ({
           class: pred.class,
           bbox: pred.bbox,
           confidence: pred.confidence
         }));
         setBoxes(detectedBoxes);
+        setHasExistingAnnotation(true); // Now we have a saved annotation
       } else {
         setBoxes([]);
-        setError("Son sunspots detected.");
+        setError("No sunspots detected.");
+        setHasExistingAnnotation(true); // Empty annotation was still saved
       }
+
     } catch (err) {
       console.error("Detection error:", err);
-      setError("Error on detection, is the model trained?");
+      
+      // More specific error messages
+      if (err.response?.status === 404) {
+        setError("No trained model available. Please train a model first.");
+      } else if (err.response?.data?.detail) {
+        setError(err.response.data.detail);
+      } else {
+        setError("Detection failed. Check console for details.");
+      }
     } finally {
       setIsDetecting(false);
     }
   };
 
-  // Save annotation
+  // Save annotation (for manual edits after detection or manual labeling)
   const handleSave = async () => {
     if (boxes.length === 0) {
       const confirmSave = window.confirm("No annotations found. Still save as 'empty'?");

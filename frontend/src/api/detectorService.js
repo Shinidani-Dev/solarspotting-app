@@ -33,12 +33,49 @@ const detectorService = {
   // DETECTION (ML Model)
   // ========================================
 
+  /**
+   * Simple detection on a patch (returns predictions only)
+   */
   async detectOnPatch(patchImageBase64, confidenceThreshold = 0.25) {
     const res = await api.post("/labeling/detect", {
       patch_image_base64: patchImageBase64,
       confidence_threshold: confidenceThreshold
     });
     return res.data;
+  },
+
+  /**
+   * Combined detect-and-save workflow:
+   * 1. Saves patch to storage/datasets/patches
+   * 2. Runs ML detection
+   * 3. Creates annotation file in storage/datasets/annotations
+   * 4. Returns annotations ready for display
+   * 
+   * This is the preferred method for Auto-Detect button!
+   */
+  async detectAndSave(payload) {
+    const res = await api.post("/labeling/detect-and-save", {
+      original_image_file: payload.original_image_file,
+      patch_file: payload.patch_file,
+      px: payload.px,
+      py: payload.py,
+      patch_image_base64: payload.patch_image_base64,
+      confidence_threshold: payload.confidence_threshold || 0.25
+    });
+    return res.data;
+  },
+
+  /**
+   * Preload the ML model into cache (optional, for faster first detection)
+   */
+  async preloadModel() {
+    try {
+      const res = await api.post("/labeling/model/preload");
+      return res.data;
+    } catch (err) {
+      console.warn("Model preload failed:", err);
+      return { success: false };
+    }
   },
 
   // ========================================
