@@ -215,7 +215,7 @@ export default function BoundingBoxCanvas({
 
     // Otherwise start drawing new box
     if (!selectedClass) {
-      alert("Bitte zuerst eine Klasse auswählen!");
+      alert("Please select a class first");
       return;
     }
 

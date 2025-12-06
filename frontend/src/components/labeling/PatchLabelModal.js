@@ -58,13 +58,13 @@ export default function PatchLabelModal({
       if (onLabeled) onLabeled(patch.patch_file);
       onClose();
     } catch (err) {
-      console.error("Fehler beim Speichern:", err);
-      alert("Fehler beim Speichern der Annotation.");
+      console.error("Error on saving:", err);
+      alert("Error on saving the annotation");
     }
   };
 
   const handleDelete = async () => {
-    if (!confirm('Möchten Sie diese Annotation wirklich löschen?')) {
+    if (!confirm('Do you really want to delete the annotation?')) {
       return;
     }
     
@@ -74,7 +74,7 @@ export default function PatchLabelModal({
       setBoxes([]);
       onClose();
     } catch (err) {
-      console.error("Fehler beim Löschen:", err);
+      console.error("Error on deleting:", err);
 
     if (err?.response?.status === 404) {
      // Patch existiert nicht mehr → sicher im Frontend entfernen
@@ -84,7 +84,7 @@ export default function PatchLabelModal({
      return;
    }
 
-      alert("Fehler beim Löschen der Annotation.");
+      alert("Error on deleting the annotation");
     }
   };
 
@@ -119,7 +119,7 @@ export default function PatchLabelModal({
             onClick={handleSave}
           >
             <Save size={18} className="mr-2" /> 
-            Speichern
+            Save
           </Button>
 
           <Button
@@ -127,20 +127,20 @@ export default function PatchLabelModal({
             onClick={handleDelete}
           >
             <Trash2 size={18} className="mr-2" /> 
-            Löschen
+            Delete
           </Button>
         </div>
 
         {/* Klasse auswählen */}
         <div className="mb-4">
-          <label className="form-label">Klasse auswählen:</label>
+          <label className="form-label">Select class:</label>
           <select
             id="classSelect"
             className="w-64 form-input"
             value={selectedClass}
             onChange={(e) => setSelectedClass(e.target.value)}
           >
-            <option value="">--- Bitte wählen ---</option>
+            <option value="">--- Please Select ---</option>
             {classes.map((cls, idx) => (
               <option key={idx} value={cls.name}>
                 {cls.name}

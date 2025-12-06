@@ -308,7 +308,7 @@ export default function DetectorPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-amber-400">
-              ☀️ Sunspot Detector
+              Sunspot Detector
             </h1>
             <p className="text-slate-400 mt-1">
               SDO Bilder hochladen, Sonnenflecken erkennen und Modell trainieren
@@ -379,7 +379,7 @@ export default function DetectorPage() {
                 </div>
                 {trainingStatus.result && (
                   <p className="text-slate-500 text-sm">
-                    {trainingStatus.result.epochs_trained} Epochs trainiert
+                    {trainingStatus.result.epochs_trained} Epochs trained
                   </p>
                 )}
               </div>
@@ -392,7 +392,7 @@ export default function DetectorPage() {
                 <p className="text-sm text-slate-500 break-words">{trainingStatus.message}</p>
               </div>
             ) : (
-              <p className="text-slate-500">Kein Training aktiv</p>
+              <p className="text-slate-500">No active training</p>
             )}
           </div>
 
@@ -400,20 +400,20 @@ export default function DetectorPage() {
           <div className="card">
             <div className="flex items-center gap-3 mb-3">
               <Sparkles className="text-amber-400" size={24} />
-              <h2 className="text-lg font-semibold text-slate-200">Aktives Modell</h2>
+              <h2 className="text-lg font-semibold text-slate-200">Active Model</h2>
             </div>
             {modelInfo?.model_available ? (
               <div className="space-y-1 text-sm">
-                <p className="text-green-400">✓ Modell verfügbar</p>
+                <p className="text-green-400">✓ Model available</p>
                 <p className="text-slate-400">
-                  Grösse: {modelInfo.model_size_mb} MB
+                  Size: {modelInfo.model_size_mb} MB
                 </p>
                 <p className="text-slate-400">
-                  Aktualisiert: {new Date(modelInfo.last_modified).toLocaleDateString()}
+                  Refreshed: {new Date(modelInfo.last_modified).toLocaleDateString()}
                 </p>
               </div>
             ) : (
-              <p className="text-slate-500">Kein Modell trainiert</p>
+              <p className="text-slate-500">No Model trainied</p>
             )}
           </div>
 
@@ -426,31 +426,31 @@ export default function DetectorPage() {
             {datasetStats ? (
               <div className="space-y-1 text-sm">
                 <p className="text-slate-400">
-                  Bilder: <span className="text-slate-200">{datasetStats.raw_images}</span>
+                  Images: <span className="text-slate-200">{datasetStats.raw_images}</span>
                 </p>
                 <p className="text-slate-400">
                   Patches: <span className="text-slate-200">{datasetStats.patches}</span>
                 </p>
                 <p className="text-slate-400">
-                  Annotationen: <span className="text-slate-200">{datasetStats.annotations}</span>
+                  Annotations: <span className="text-slate-200">{datasetStats.annotations}</span>
                 </p>
                 <p className="text-slate-400">
                   Dataset Ready: {datasetStats.output_dataset_ready ? (
-                    <span className="text-green-400">✓ Ja</span>
+                    <span className="text-green-400">✓ Yes</span>
                   ) : (
-                    <span className="text-yellow-400">✗ Nein</span>
+                    <span className="text-yellow-400">✗ No</span>
                   )}
                 </p>
               </div>
             ) : (
-              <p className="text-slate-500">Laden...</p>
+              <p className="text-slate-500">Load...</p>
             )}
           </div>
         </div>
 
         {/* Main Actions */}
         <div className="card">
-          <h2 className="text-xl font-semibold text-amber-400 mb-4">Aktionen</h2>
+          <h2 className="text-xl font-semibold text-amber-400 mb-4">Actions</h2>
           
           <div className="flex flex-wrap gap-4 items-center">
             {/* Upload */}
@@ -460,7 +460,7 @@ export default function DetectorPage() {
               ) : (
                 <Upload size={18} />
               )}
-              {isUploading ? "Uploading..." : "Bild hochladen"}
+              {isUploading ? "Uploading..." : "Upload Image"}
               <input
                 type="file"
                 accept=".jpg,.jpeg,.png"
@@ -477,7 +477,7 @@ export default function DetectorPage() {
                 value={selectedImage || ""}
                 onChange={(e) => setSelectedImage(e.target.value)}
               >
-                <option value="">-- Bild auswählen --</option>
+                <option value="">-- Select Image --</option>
                 {imageList.map((img) => (
                   <option key={img} value={img}>{img}</option>
                 ))}
@@ -496,7 +496,7 @@ export default function DetectorPage() {
               ) : (
                 <Play size={18} />
               )}
-              {isProcessing ? "Processing..." : "Verarbeiten"}
+              {isProcessing ? "Processing..." : "Process"}
             </Button>
 
             {/* Finalize Dataset */}
@@ -507,7 +507,7 @@ export default function DetectorPage() {
               className="flex items-center gap-2"
             >
               <Database size={18} />
-              Dataset finalisieren
+              Finalise Dataset
             </Button>
 
             {/* Start Training */}
@@ -522,7 +522,7 @@ export default function DetectorPage() {
               ) : (
                 <Cpu size={18} />
               )}
-              Training starten
+              Start Training
             </Button>
 
             {/* Refresh */}
@@ -532,7 +532,7 @@ export default function DetectorPage() {
               className="flex items-center gap-2"
             >
               <RefreshCw size={18} />
-              Aktualisieren
+              Refresh
             </Button>
           </div>
         </div>
@@ -545,10 +545,10 @@ export default function DetectorPage() {
             <div className="card">
               <div className="flex justify-between items-center mb-4">
                 <div>
-                  <h2 className="text-xl font-bold text-amber-400">Originalbild</h2>
+                  <h2 className="text-xl font-bold text-amber-400">Original Image</h2>
                   <p className="text-slate-400 text-sm">
                     {processedData.filename} • {processedData.total_patches} Patches • 
-                    Zentrum: ({processedData.sun_center.x}, {processedData.sun_center.y}) • 
+                    Center: ({processedData.sun_center.x}, {processedData.sun_center.y}) • 
                     Radius: {processedData.sun_radius.toFixed(0)}px
                   </p>
                 </div>
@@ -621,7 +621,7 @@ export default function DetectorPage() {
                 ) : (
                   <div className="flex items-center justify-center h-64 bg-slate-800 rounded border border-slate-700">
                     <Loader2 size={32} className="animate-spin text-amber-400 mr-2" />
-                    <span className="text-slate-400">Bild wird geladen...</span>
+                    <span className="text-slate-400">Loading Image...</span>
                   </div>
                 )}
               </div>
@@ -635,7 +635,7 @@ export default function DetectorPage() {
               
               {processedData.patches.length === 0 ? (
                 <p className="text-slate-500 text-center py-8">
-                  Keine Sonnenflecken-Kandidaten gefunden.
+                  No Sunspot candidates found.
                 </p>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
@@ -691,10 +691,10 @@ export default function DetectorPage() {
           <div className="card text-center py-16">
             <ImageIcon size={64} className="mx-auto text-slate-600 mb-4" />
             <h3 className="text-xl text-slate-400 mb-2">
-              Kein Bild verarbeitet
+              No Image processed
             </h3>
             <p className="text-slate-500">
-              Lade ein SDO Bild hoch und klicke auf verarbeiten um zu starten.
+              Upload an SDO Image and klick on process to start.
             </p>
           </div>
         )}
