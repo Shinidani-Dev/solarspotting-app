@@ -12,7 +12,7 @@ function isTokenExpired(token) {
 
 export function middleware(request) {
   // Öffentliche Pfade definieren
-  const publicPaths = ['/login', '/playground'];
+  const publicPaths = ['/login', '/playground', '/demo', '/images/classes'];
   const isPublicPath = publicPaths.some(path => 
     request.nextUrl.pathname === path || 
     request.nextUrl.pathname.startsWith(`${path}/`)
