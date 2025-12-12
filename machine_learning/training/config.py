@@ -10,7 +10,7 @@ class TrainingConfig:
     """
 
     dataset_path: Path
-    model_arch: str = "yolov8n.pt"
+    model_arch: str = "yolov11n.pt"
     epochs: int = 50
     batch_size: int = 16
     img_size: int = 512

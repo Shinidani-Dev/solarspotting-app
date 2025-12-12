@@ -13,7 +13,7 @@ router = APIRouter(prefix="/users", tags=["Users"])
 
 # user endpoints
 @router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def create_user(user_data: UserCreate, db: DB_DEPENDENCY):
+async def create_user(user_data: UserCreate, db: DB_DEPENDENCY, user: CURRENT_ADMIN_USER):
     usr = await db.execute(select(User).where(User.username == user_data.username))
     if usr.scalars().first():
         raise HTTPException(

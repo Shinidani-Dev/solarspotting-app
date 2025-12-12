@@ -17,10 +17,22 @@ const CLASS_COLORS = {
   H: "#06b6d4",  // cyan
 };
 
+/**
+ * DetectorPatchModal
+ * 
+ * Modal for viewing and annotating patches.
+ * 
+ * Props:
+ * - patch: The patch data object
+ * - onClose: Function to close the modal
+ * - onSaved: Callback when annotation is saved/deleted
+ * - canEdit: Boolean - if true, shows Save/Delete buttons (for Labeler/Admin)
+ */
 export default function DetectorPatchModal({
   patch,
   onClose,
-  onSaved
+  onSaved,
+  canEdit = false  // NEU: Default false - nur anzeigen
 }) {
   const [showGrid, setShowGrid] = useState(true);
   const [boxes, setBoxes] = useState([]);
@@ -30,7 +42,7 @@ export default function DetectorPatchModal({
   const [hasExistingAnnotation, setHasExistingAnnotation] = useState(false);
   const [error, setError] = useState(null);
   
-  // Controlled state für Klassen-Auswahl - wird als prop an Canvas übergeben
+  // Controlled state für Klassen-Auswahl
   const [selectedClass, setSelectedClass] = useState('');
 
   // Classes for dropdown
@@ -58,7 +70,6 @@ export default function DetectorPatchModal({
           setHasExistingAnnotation(false);
         }
       } catch (err) {
-        // Fehler nur loggen wenn es kein 404 ist (404 wird im Service behandelt)
         setBoxes([]);
         setHasExistingAnnotation(false);
       } finally {
@@ -88,66 +99,39 @@ export default function DetectorPatchModal({
     );
   }
 
-  // =============================================
-  // Auto-detect using ML model - COMBINED WORKFLOW
-  // =============================================
+  // Auto-detect using ML model (alle User können das)
   const handleDetect = async () => {
     setIsDetecting(true);
     setError(null);
 
     try {
-      // Use the combined detect-and-save endpoint
-      // This saves the patch, runs detection, and creates the annotation file
-      const result = await detectorService.detectAndSave({
-        original_image_file: patch.original_image_file,
-        patch_file: patch.patch_file,
-        px: patch.px,
-        py: patch.py,
-        patch_image_base64: patch.image_base64,
-        confidence_threshold: 0.25
-      });
-
-      if (!result.model_available) {
-        setError("No trained model available. Please train a model first.");
-        setBoxes([]);
-        return;
-      }
+      const result = await detectorService.detectOnPatch(patch.image_base64, 0.25);
 
       if (result.predictions && result.predictions.length > 0) {
-        // Set boxes from predictions (same format as loading annotation)
         const detectedBoxes = result.predictions.map(pred => ({
           class: pred.class,
           bbox: pred.bbox,
           confidence: pred.confidence
         }));
         setBoxes(detectedBoxes);
-        setHasExistingAnnotation(true); // Now we have a saved annotation
       } else {
         setBoxes([]);
-        setError("No sunspots detected.");
-        setHasExistingAnnotation(true); // Empty annotation was still saved
+        setError("Keine Sonnenflecken erkannt.");
       }
-
     } catch (err) {
       console.error("Detection error:", err);
-      
-      // More specific error messages
-      if (err.response?.status === 404) {
-        setError("No trained model available. Please train a model first.");
-      } else if (err.response?.data?.detail) {
-        setError(err.response.data.detail);
-      } else {
-        setError("Detection failed. Check console for details.");
-      }
+      setError("Fehler bei der Erkennung. Ist das Modell trainiert?");
     } finally {
       setIsDetecting(false);
     }
   };
 
-  // Save annotation (for manual edits after detection or manual labeling)
+  // Save annotation (nur für Labeler/Admin)
   const handleSave = async () => {
+    if (!canEdit) return;
+    
     if (boxes.length === 0) {
-      const confirmSave = window.confirm("No annotations found. Still save as 'empty'?");
+      const confirmSave = window.confirm("Keine Annotationen vorhanden. Trotzdem als 'leer' speichern?");
       if (!confirmSave) return;
     }
 
@@ -172,15 +156,17 @@ export default function DetectorPatchModal({
       onClose();
     } catch (err) {
       console.error("Save error:", err);
-      setError("Error occurred while saving.");
+      setError("Fehler beim Speichern.");
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Delete annotation and patch
+  // Delete annotation and patch (nur für Labeler/Admin)
   const handleDelete = async () => {
-    const confirmDelete = window.confirm("Are you sure to delete the patch and annotation?");
+    if (!canEdit) return;
+    
+    const confirmDelete = window.confirm("Patch und Annotation wirklich löschen?");
     if (!confirmDelete) return;
 
     try {
@@ -190,12 +176,13 @@ export default function DetectorPatchModal({
       onClose();
     } catch (err) {
       console.error("Delete error:", err);
-      setError("Error on deleting.");
+      setError("Fehler beim Löschen.");
     }
   };
 
   // Remove a single box
   const handleRemoveBox = (index) => {
+    if (!canEdit) return;
     setBoxes(prev => prev.filter((_, i) => i !== index));
   };
 
@@ -214,14 +201,19 @@ export default function DetectorPatchModal({
         {/* Header */}
         <div className="mb-4">
           <h2 className="text-2xl font-bold text-amber-400">
-          Label Patch
+            {canEdit ? 'Patch labeln' : 'Patch ansehen'}
           </h2>
           <p className="text-slate-400 text-sm mt-1 truncate">
             {patch.patch_file}
           </p>
           {hasExistingAnnotation && (
             <span className="inline-block mt-2 px-3 py-1 bg-green-500/20 text-green-400 text-xs rounded-full">
-              Existing Annotations loaded
+              Bestehende Annotationen geladen
+            </span>
+          )}
+          {!canEdit && (
+            <span className="inline-block mt-2 ml-2 px-3 py-1 bg-slate-700 text-slate-400 text-xs rounded-full">
+              Nur Ansicht (keine Bearbeitungsrechte)
             </span>
           )}
         </div>
@@ -230,12 +222,13 @@ export default function DetectorPatchModal({
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="animate-spin text-amber-400" size={40} />
-            <span className="ml-3 text-slate-300">Loading annotation...</span>
+            <span className="ml-3 text-slate-300">Lade Annotation...</span>
           </div>
         ) : (
           <>
             {/* Action Buttons */}
             <div className="flex flex-wrap gap-3 mb-4">
+              {/* Auto-Detect - alle User */}
               <Button
                 variant="primary"
                 onClick={handleDetect}
@@ -250,36 +243,41 @@ export default function DetectorPatchModal({
                 {isDetecting ? "Erkennung läuft..." : "Auto-Detect"}
               </Button>
 
+              {/* Grid Toggle - alle User */}
               <Button
                 variant="secondary"
                 onClick={() => setShowGrid(g => !g)}
                 className="flex items-center gap-2"
               >
                 {showGrid ? <GridOffIcon size={18} /> : <GridIcon size={18} />}
-                {showGrid ? "Hide grid" : "Show grid"}
+                {showGrid ? "Grid ausblenden" : "Grid einblenden"}
               </Button>
 
-              <Button
-                variant="primary"
-                onClick={handleSave}
-                disabled={isSaving}
-                className="flex items-center gap-2"
-              >
-                {isSaving ? (
-                  <Loader2 size={18} className="animate-spin" />
-                ) : (
-                  <Save size={18} />
-                )}
-                {isSaving ? "Saving..." : "Save"}
-              </Button>
+              {/* Save Button - nur Labeler/Admin */}
+              {canEdit && (
+                <Button
+                  variant="primary"
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className="flex items-center gap-2"
+                >
+                  {isSaving ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : (
+                    <Save size={18} />
+                  )}
+                  {isSaving ? "Speichern..." : "Speichern"}
+                </Button>
+              )}
 
-              {hasExistingAnnotation && (
+              {/* Delete Button - nur Labeler/Admin */}
+              {canEdit && hasExistingAnnotation && (
                 <Button
                   variant="danger"
                   onClick={handleDelete}
                   className="flex items-center gap-2"
                 >
-                  <Trash2 size={18} /> Delete
+                  <Trash2 size={18} /> Löschen
                 </Button>
               )}
             </div>
@@ -291,42 +289,45 @@ export default function DetectorPatchModal({
               </div>
             )}
 
-            {/* Class Selection - CONTROLLED */}
-            <div className="mb-4 flex items-center gap-4">
-              <label className="text-slate-300 font-medium">Class to draw:</label>
-              <select
-                className="form-input w-48"
-                value={selectedClass}
-                onChange={(e) => setSelectedClass(e.target.value)}
-              >
-                <option value="">-- Select --</option>
-                {classes.map((cls) => (
-                  <option key={cls.name} value={cls.name}>
-                    {cls.name}
-                  </option>
-                ))}
-              </select>
-              {selectedClass && (
-                <span 
-                  className="w-6 h-6 rounded border-2 border-slate-600"
-                  style={{ backgroundColor: CLASS_COLORS[selectedClass] }}
-                />
-              )}
-              <span className="text-slate-500 text-sm">
-                (Click and draw | Drag and move | Scale on corners)
-              </span>
-            </div>
+            {/* Class Selection - nur für Labeler/Admin */}
+            {canEdit && (
+              <div className="mb-4 flex items-center gap-4">
+                <label className="text-slate-300 font-medium">Klasse zum Zeichnen:</label>
+                <select
+                  className="form-input w-48"
+                  value={selectedClass}
+                  onChange={(e) => setSelectedClass(e.target.value)}
+                >
+                  <option value="">-- Auswählen --</option>
+                  {classes.map((cls) => (
+                    <option key={cls.name} value={cls.name}>
+                      {cls.name}
+                    </option>
+                  ))}
+                </select>
+                {selectedClass && (
+                  <span 
+                    className="w-6 h-6 rounded border-2 border-slate-600"
+                    style={{ backgroundColor: CLASS_COLORS[selectedClass] }}
+                  />
+                )}
+                <span className="text-slate-500 text-sm">
+                  (Klicken und ziehen | Verschieben | Ecken skalieren)
+                </span>
+              </div>
+            )}
 
-            {/* Canvas - selectedClass als PROP übergeben */}
+            {/* Canvas */}
             <div className="mb-4">
               <BoundingBoxCanvas
                 image={imgSrc}
                 grid={patch.grid}
                 showGrid={showGrid}
                 boxes={boxes}
-                setBoxes={setBoxes}
+                setBoxes={canEdit ? setBoxes : () => {}} // Nur setzen wenn canEdit
                 classes={classes}
                 selectedClass={selectedClass}
+                readOnly={!canEdit}  // NEU: readOnly mode wenn nicht canEdit
               />
             </div>
 
@@ -334,7 +335,7 @@ export default function DetectorPatchModal({
             {boxes.length > 0 && (
               <div className="mt-4">
                 <h3 className="text-lg font-semibold text-slate-300 mb-2">
-                  Annotations ({boxes.length})
+                  Annotationen ({boxes.length})
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                   {boxes.map((box, idx) => (
@@ -354,12 +355,14 @@ export default function DetectorPatchModal({
                           </span>
                         )}
                       </div>
-                      <button
-                        onClick={() => handleRemoveBox(idx)}
-                        className="text-slate-500 hover:text-red-400 transition-colors"
-                      >
-                        <X size={16} />
-                      </button>
+                      {canEdit && (
+                        <button
+                          onClick={() => handleRemoveBox(idx)}
+                          className="text-slate-500 hover:text-red-400 transition-colors"
+                        >
+                          <X size={16} />
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>

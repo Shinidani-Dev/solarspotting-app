@@ -78,8 +78,9 @@ class UserUpdate(BaseModel):
 class AdminUserUpdate(BaseModel):
     """Schema for admin-only user updates"""
     role: Optional[str] = "user"
-    is_labeler: Optional[bool] = False
-    locked: Optional[bool] = False
+    is_labeler: Optional[bool] = None
+    locked: Optional[bool] = None
+    active: Optional[bool] = None
 
     @model_validator(mode="after")
     def validate_role(self):
