@@ -677,31 +677,54 @@ async def delete_patch_from_dataset(
 # ===================================================================
 # FINISH DATASET → CREATE TRAIN/VAL SPLIT + ARCHIVE (Nur Labeler + Admin)
 # ===================================================================
+def write_yolo_label(txt_path: Path, annotations: list, class_to_id: dict, img_size: int = 512):
+    """
+    Writes YOLO-format label file.
+    """
+    lines = []
+
+    for ann in annotations:
+        cls_name = ann["class"]
+        if cls_name not in class_to_id:
+            continue
+
+        cls_id = class_to_id[cls_name]
+
+        x, y, w, h = ann["bbox"]
+
+        # convert to YOLO format (center-based, normalized)
+        x_c = (x + w / 2) / img_size
+        y_c = (y + h / 2) / img_size
+        w_n = w / img_size
+        h_n = h / img_size
+
+        lines.append(f"{cls_id} {x_c:.6f} {y_c:.6f} {w_n:.6f} {h_n:.6f}")
+
+    if lines:
+        txt_path.write_text("\n".join(lines))
+
 
 @router.post("/dataset/finish", status_code=200)
-async def finalize_dataset(user: CURRENT_LABELER_USER):  # Nur Labeler + Admin
+async def finalize_dataset(user: CURRENT_LABELER_USER):
     """
     Finalisiert das Dataset:
-    1. Archiviert das bestehende dataset.zip (falls vorhanden)
-    2. Erstellt neues Train/Val Split (80/20)
-    3. Generiert COCO-Format JSON + ZIP
-
-    Requires: Labeler or Admin role
+    - erstellt YOLO train/val Struktur
+    - erzeugt TXT Labels aus annotations.json
+    - 80/20 Split
     """
 
-    # 0. Archive existing dataset if present
+    # --------------------------------------------------
+    # Archive existing dataset
+    # --------------------------------------------------
     existing_zip = OUTPUT_DIR / "dataset.zip"
     if existing_zip.exists():
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        archive_name = f"dataset_{timestamp}.zip"
-        archive_path = ARCHIVE_DIR / archive_name
-        try:
-            shutil.copy(existing_zip, archive_path)
-            print(f"[ARCHIVE] Archived existing dataset to {archive_path}")
-        except Exception as e:
-            print(f"[ARCHIVE WARNING] Could not archive: {e}")
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+        shutil.copy(existing_zip, ARCHIVE_DIR / f"dataset_{ts}.zip")
 
-    # 1. Clean output directory
+    # --------------------------------------------------
+    # Clean output
+    # --------------------------------------------------
     shutil.rmtree(OUTPUT_DIR, ignore_errors=True)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -709,144 +732,115 @@ async def finalize_dataset(user: CURRENT_LABELER_USER):  # Nur Labeler + Admin
     val_dir = OUTPUT_DIR / "val"
 
     (train_dir / "images").mkdir(parents=True, exist_ok=True)
+    (train_dir / "labels").mkdir(parents=True, exist_ok=True)
     (val_dir / "images").mkdir(parents=True, exist_ok=True)
+    (val_dir / "labels").mkdir(parents=True, exist_ok=True)
 
-    # 2. Load all annotation files
+    # --------------------------------------------------
+    # Load annotations
+    # --------------------------------------------------
     annotation_files = sorted(ANNOTATIONS_DIR.glob("*.json"))
     if not annotation_files:
         raise HTTPException(status_code=400, detail="No annotations found.")
 
-    # 3. First pass: collect ALL categories globally
-    global_categories = {}  # class_name → new_id
-    next_cat_id = 0  # START AT 0 (YOLO REQUIREMENT)
-
-    parsed_annotations = []  # list of (ann_file, data)
+    parsed = []
+    class_to_id = {}
+    next_id = 0
 
     for ann_file in annotation_files:
         with open(ann_file, "r") as f:
             data = json.load(f)
 
-        anns = data.get("annotations", [])
-
-        # assign each class a unique ID 0..N-1
-        for ann in anns:
+        for ann in data.get("annotations", []):
             cls = ann["class"]
-            if cls not in global_categories:
-                global_categories[cls] = next_cat_id
-                next_cat_id += 1
+            if cls not in class_to_id:
+                class_to_id[cls] = next_id
+                next_id += 1
 
-        parsed_annotations.append((ann_file, data))
+        parsed.append(data)
 
-    # 4. Shuffle & split 80/20
-    np.random.shuffle(parsed_annotations)
-    split_index = int(len(parsed_annotations) * 0.8)
-    train_data = parsed_annotations[:split_index]
-    val_data = parsed_annotations[split_index:]
+    # --------------------------------------------------
+    # Shuffle & split
+    # --------------------------------------------------
+    np.random.shuffle(parsed)
+    split = int(len(parsed) * 0.8)
+    train_data = parsed[:split]
+    val_data = parsed[split:]
 
-    # 5. Function to build COCO structure
-    def build_coco(dataset_list, images_dir, output_json):
+    # --------------------------------------------------
+    # Build YOLO datasets
+    # --------------------------------------------------
+    def build_yolo(data_list, images_dir, labels_dir):
+        img_count = 0
+        box_count = 0
 
-        images_coco = []
-        annotations_coco = []
-        ann_id = 1
-        img_id = 1
-
-        for ann_file, data in dataset_list:
-
+        for data in data_list:
             patch_file = data["patch_file"]
             anns = data.get("annotations", [])
 
-            src_patch_path = PATCHES_DIR / patch_file
-            if not src_patch_path.exists():
-                print(f"[WARN] Missing patch image: {patch_file}")
+            src_img = PATCHES_DIR / patch_file
+            if not src_img.exists():
                 continue
 
-            # Copy patch image
-            dst_path = images_dir / patch_file
-            shutil.copy(src_patch_path, dst_path)
+            shutil.copy(src_img, images_dir / patch_file)
 
-            # COCO image entry
-            images_coco.append({
-                "id": img_id,
-                "file_name": patch_file,
-                "width": 512,
-                "height": 512
-            })
+            label_path = labels_dir / f"{Path(patch_file).stem}.txt"
+            write_yolo_label(label_path, anns, class_to_id)
 
-            # COCO annotations
-            for ann in anns:
-                cls = ann["class"]
-                cat_id = global_categories[cls]  # already 0..N-1
+            img_count += 1
+            box_count += len(anns)
 
-                x, y, w, h = ann["bbox"]
-                area = float(w) * float(h)
+        return img_count, box_count
 
-                annotations_coco.append({
-                    "id": ann_id,
-                    "image_id": img_id,
-                    "category_id": cat_id,
-                    "bbox": [float(x), float(y), float(w), float(h)],
-                    "area": area,
-                    "iscrowd": 0
-                })
-
-                ann_id += 1
-
-            img_id += 1
-
-        # categories LIST, SORTED BY ID (YOLO REQUIREMENT)
-        categories_list = [
-            {"id": cid, "name": cname}
-            for cname, cid in sorted(global_categories.items(), key=lambda x: x[1])
-        ]
-
-        # COCO final JSON
-        coco = {
-            "info": {
-                "description": "SolarSpotting Dataset",
-                "version": "1.0",
-                "year": datetime.now().year,
-                "created_by": user.username
-            },
-            "licenses": [],
-            "images": images_coco,
-            "annotations": annotations_coco,
-            "categories": categories_list
-        }
-
-        with open(output_json, "w") as f:
-            json.dump(coco, f, indent=4)
-
-        return len(images_coco), len(annotations_coco)
-
-    # 6. Build datasets
-    train_images, train_ann = build_coco(
-        train_data, train_dir / "images", train_dir / "labels.json"
+    train_images, train_boxes = build_yolo(
+        train_data, train_dir / "images", train_dir / "labels"
     )
 
-    val_images, val_ann = build_coco(
-        val_data, val_dir / "images", val_dir / "labels.json"
+    val_images, val_boxes = build_yolo(
+        val_data, val_dir / "images", val_dir / "labels"
     )
 
-    # 7. ZIP export
+    # --------------------------------------------------
+    # dataset.yaml (YOLO-native)
+    # --------------------------------------------------
+    names = [k for k, _ in sorted(class_to_id.items(), key=lambda x: x[1])]
+
+    dataset_yaml = {
+        "path": str(OUTPUT_DIR.resolve()).replace("\\", "/"),
+        "train": "train/images",
+        "val": "val/images",
+        "names": names,
+        "nc": len(names),
+    }
+
+    with open(OUTPUT_DIR / "dataset.yaml", "w") as f:
+        import yaml
+        yaml.dump(dataset_yaml, f)
+
+    # --------------------------------------------------
+    # ZIP export
+    # --------------------------------------------------
     zip_path = OUTPUT_DIR / "dataset.zip"
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
-        zipf.write(train_dir / "labels.json", arcname="train/labels.json")
-        for f in (train_dir / "images").iterdir():
-            zipf.write(f, arcname=f"train/images/{f.name}")
-
-        zipf.write(val_dir / "labels.json", arcname="val/labels.json")
-        for f in (val_dir / "images").iterdir():
-            zipf.write(f, arcname=f"val/images/{f.name}")
+        for split_name in ["train", "val"]:
+            for sub in ["images", "labels"]:
+                folder = OUTPUT_DIR / split_name / sub
+                for file in folder.iterdir():
+                    zipf.write(
+                        file,
+                        arcname=f"{split_name}/{sub}/{file.name}"
+                    )
 
     return {
-        "message": "Dataset created successfully",
-        "zip_file": str(zip_path),
+        "message": "YOLO dataset created successfully",
         "train_images": train_images,
+        "train_boxes": train_boxes,
         "val_images": val_images,
-        "categories": global_categories,
+        "val_boxes": val_boxes,
+        "classes": class_to_id,
         "created_by": user.username
     }
+
 
 
 # ===================================================================
@@ -940,48 +934,77 @@ async def get_annotation_for_patch(
 # ===================================================================
 # DATASET STATS (Nur Admin - für ML Page)
 # ===================================================================
+# ===================================================================
+# DATASET STATS (Nur Admin - für ML Page)
+# ===================================================================
 
 @router.get("/dataset/stats", status_code=200)
-async def get_dataset_stats(user: CURRENT_ADMIN_USER):  # Nur Admin
+async def get_dataset_stats(user: CURRENT_ADMIN_USER):
     """
-    Returns statistics about the current dataset.
+    Returns statistics about the current dataset (YOLO format).
     Used on the ML Training page.
 
     Requires: Admin role
     """
-    # Count raw images
-    raw_images = len([f for f in IMAGES_DIR.iterdir() if f.suffix.lower() in [".jpg", ".jpeg", ".png"]])
 
-    # Count patches
+    # --------------------------------------------------
+    # Raw images
+    # --------------------------------------------------
+    raw_images = len([
+        f for f in IMAGES_DIR.iterdir()
+        if f.suffix.lower() in [".jpg", ".jpeg", ".png"]
+    ])
+
+    # --------------------------------------------------
+    # Patches & annotations (source data)
+    # --------------------------------------------------
     patches = len(list(PATCHES_DIR.glob("*.jpg")))
-
-    # Count annotations
     annotations = len(list(ANNOTATIONS_DIR.glob("*.json")))
 
-    # Check if output dataset exists
-    output_exists = (OUTPUT_DIR / "train" / "labels.json").exists()
+    # --------------------------------------------------
+    # YOLO output dataset existence
+    # --------------------------------------------------
+    train_labels_dir = OUTPUT_DIR / "train" / "labels"
+    val_labels_dir = OUTPUT_DIR / "val" / "labels"
 
-    # Count annotations by class
+    output_exists = (
+        train_labels_dir.exists()
+        and val_labels_dir.exists()
+        and any(train_labels_dir.glob("*.txt"))
+    )
+
+    # --------------------------------------------------
+    # Class distribution (from SOURCE annotations)
+    # --------------------------------------------------
     class_counts = {cls: 0 for cls in SUNSPOT_CLASSES}
     total_bboxes = 0
 
     for ann_file in ANNOTATIONS_DIR.glob("*.json"):
-        with open(ann_file, "r") as f:
-            data = json.load(f)
-            for ann in data.get("annotations", []):
-                cls = ann.get("class", "Unknown")
-                if cls in class_counts:
-                    class_counts[cls] += 1
-                total_bboxes += 1
+        try:
+            with open(ann_file, "r") as f:
+                data = json.load(f)
+        except Exception:
+            continue
 
-    # List archived datasets
+        for ann in data.get("annotations", []):
+            cls = ann.get("class")
+            if cls in class_counts:
+                class_counts[cls] += 1
+            total_bboxes += 1
+
+    # --------------------------------------------------
+    # Archived datasets
+    # --------------------------------------------------
     archived_datasets = []
     for archive_file in ARCHIVE_DIR.glob("dataset_*.zip"):
         archived_datasets.append({
             "filename": archive_file.name,
             "size_mb": round(archive_file.stat().st_size / (1024 * 1024), 2),
-            "created": datetime.fromtimestamp(archive_file.stat().st_mtime).isoformat()
+            "created": datetime.fromtimestamp(
+                archive_file.stat().st_mtime
+            ).isoformat()
         })
+
     archived_datasets.sort(key=lambda x: x["created"], reverse=True)
 
     return {
@@ -993,6 +1016,7 @@ async def get_dataset_stats(user: CURRENT_ADMIN_USER):  # Nur Admin
         "output_dataset_ready": output_exists,
         "archived_datasets": archived_datasets
     }
+
 
 
 # ===================================================================
@@ -1030,7 +1054,6 @@ async def get_model_info(user: CURRENT_ADMIN_USER):  # Nur Admin
 # ===================================================================
 # TRAINING (Nur Admin)
 # ===================================================================
-
 def _run_training(config: TrainingConfig, job_id: str):
     """Background training function with progress tracking via YOLO callbacks"""
     global training_status
@@ -1039,7 +1062,6 @@ def _run_training(config: TrainingConfig, job_id: str):
     import yaml
 
     def on_train_epoch_end(trainer):
-        """Callback called after each training epoch"""
         with training_lock:
             current = trainer.epoch + 1
             total = trainer.epochs
@@ -1048,60 +1070,53 @@ def _run_training(config: TrainingConfig, job_id: str):
             training_status["progress_percent"] = round((current / total) * 100, 1)
             training_status["message"] = f"Training... Epoch {current}/{total}"
 
-            # Extract metrics if available
-            if hasattr(trainer, 'metrics') and trainer.metrics:
+            if hasattr(trainer, "loss_items"):
                 training_status["metrics"] = {
-                    "box_loss": round(float(trainer.loss_items[0]), 4) if hasattr(trainer, 'loss_items') else None,
-                    "cls_loss": round(float(trainer.loss_items[1]), 4) if hasattr(trainer, 'loss_items') and len(
-                        trainer.loss_items) > 1 else None,
+                    "box_loss": round(float(trainer.loss_items[0]), 4),
+                    "cls_loss": round(float(trainer.loss_items[1]), 4)
                 }
 
     def on_train_start(trainer):
-        """Callback called when training starts"""
         with training_lock:
             training_status["total_epochs"] = trainer.epochs
-            training_status["message"] = f"Training gestartet... 0/{trainer.epochs} Epochs"
+            training_status["message"] = f"Training gestartet... 0/{trainer.epochs}"
 
     try:
-        # 1) Create dataset yaml
+        # --------------------------------------------------
+        # Dataset sanity check (YOLO format!)
+        # --------------------------------------------------
+        train_labels = list((config.dataset_path / "train" / "labels").glob("*.txt"))
+        if not train_labels:
+            raise RuntimeError(
+                "YOLO dataset invalid: no train/labels/*.txt found"
+            )
+
+        # --------------------------------------------------
+        # dataset.yaml (must exist!)
+        # --------------------------------------------------
         dataset_yaml = config.dataset_path / "dataset.yaml"
+        if not dataset_yaml.exists():
+            raise RuntimeError("dataset.yaml not found. Run /dataset/finish first.")
 
-        with open(config.dataset_path / "train" / "labels.json", "r") as f:
-            data = json.load(f)
-
-        categories = data["categories"]
-
-        # Aus den Kategorien eine sortierte Namensliste bauen (Index == class_id)
-        names_list = [cat["name"] for cat in sorted(categories, key=lambda c: c["id"])]
-
-        yaml_content = {
-            "path": str(config.dataset_path.resolve()).replace("\\", "/"),
-            "train": "train/images",
-            "val": "val/images",
-            "train_labels": "train/labels.json",
-            "val_labels": "val/labels.json",
-            "format": "coco",
-            "names": names_list,
-            "nc": len(names_list),
-        }
-
-        with open(dataset_yaml, "w") as f:
-            yaml.dump(yaml_content, f)
-
-        # 2) Archive old model
+        # --------------------------------------------------
+        # Archive old model
+        # --------------------------------------------------
         ModelManager.archive_active_model()
 
-        # 3) Load model
+        # --------------------------------------------------
+        # Load base model
+        # --------------------------------------------------
         with training_lock:
             training_status["message"] = "Lade Modell..."
 
         model = YOLO(config.model_arch)
 
-        # 4) Register callbacks
         model.add_callback("on_train_start", on_train_start)
         model.add_callback("on_train_epoch_end", on_train_epoch_end)
 
-        # 5) Train
+        # --------------------------------------------------
+        # Train
+        # --------------------------------------------------
         with training_lock:
             training_status["message"] = "Starte Training..."
             training_status["total_epochs"] = config.epochs
@@ -1111,41 +1126,38 @@ def _run_training(config: TrainingConfig, job_id: str):
             epochs=config.epochs,
             batch=config.batch_size,
             imgsz=config.img_size,
-            device=config.device,
+            device=config.device,      # auto / cuda
             project=str(config.dataset_path.parent),
             name=f"train_{job_id}",
             pretrained=True,
             verbose=True
         )
 
-        # 6) Save best model
+        # --------------------------------------------------
+        # Save best model
+        # --------------------------------------------------
         best_model_path = Path(results.save_dir) / "weights" / "best.pt"
+        if not best_model_path.exists():
+            raise RuntimeError("Training finished but best.pt not found")
 
-        if best_model_path.exists():
-            ModelManager.save_active_model(best_model_path)
+        ModelManager.save_active_model(best_model_path)
+        invalidate_model_cache()
 
-            # Invalidate model cache so new model gets loaded
-            invalidate_model_cache()
-
-            with training_lock:
-                training_status["is_running"] = False
-                training_status["finished_at"] = datetime.now().isoformat()
-                training_status["status"] = "completed"
-                training_status["progress_percent"] = 100
-                training_status["message"] = "Training erfolgreich abgeschlossen!"
-                training_status["result"] = {
-                    "message": "Training completed successfully",
-                    "active_model": str(ModelManager.get_active_model_path()),
-                    "run_dir": str(results.save_dir),
-                    "epochs_trained": config.epochs
-                }
-        else:
-            raise Exception(f"Best model not found at {best_model_path}")
+        with training_lock:
+            training_status["is_running"] = False
+            training_status["finished_at"] = datetime.now().isoformat()
+            training_status["status"] = "completed"
+            training_status["progress_percent"] = 100
+            training_status["message"] = "Training erfolgreich abgeschlossen!"
+            training_status["result"] = {
+                "active_model": str(ModelManager.get_active_model_path()),
+                "run_dir": str(results.save_dir),
+                "epochs_trained": config.epochs
+            }
 
     except Exception as e:
         import traceback
-        error_details = traceback.format_exc()
-        print(f"[TRAINING ERROR] {error_details}")
+        print("[TRAINING ERROR]", traceback.format_exc())
 
         with training_lock:
             training_status["is_running"] = False
@@ -1161,17 +1173,24 @@ async def start_training(
         request: TrainRequest = None
 ):
     """
-    Starts model training asynchronously.
+    Starts model training asynchronously (YOLO format).
     The training runs in the background. Use GET /train/status to check progress.
 
     Prerequisites:
     - Dataset must be finalized via POST /dataset/finish
-
-    Requires: Admin role
+      Expected structure:
+        output/
+          dataset.yaml
+          train/images/*.jpg
+          train/labels/*.txt
+          val/images/*.jpg
+          val/labels/*.txt
     """
     global training_status
 
+    # --------------------------------------------------
     # Check if training is already running
+    # --------------------------------------------------
     with training_lock:
         if training_status["is_running"]:
             raise HTTPException(
@@ -1179,30 +1198,88 @@ async def start_training(
                 detail="Training is already in progress. Check /train/status for details."
             )
 
-    # Check if dataset exists
+    # --------------------------------------------------
+    # Validate YOLO dataset exists
+    # --------------------------------------------------
+    dataset_yaml = OUTPUT_DIR / "dataset.yaml"
+
     train_dir = OUTPUT_DIR / "train"
     val_dir = OUTPUT_DIR / "val"
 
-    if not (train_dir / "labels.json").exists():
+    train_images_dir = train_dir / "images"
+    train_labels_dir = train_dir / "labels"
+
+    val_images_dir = val_dir / "images"
+    val_labels_dir = val_dir / "labels"
+
+    if not dataset_yaml.exists():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No dataset found. Please finalize dataset first via POST /dataset/finish"
+            detail="dataset.yaml not found. Please finalize dataset first via POST /dataset/finish"
         )
 
-    # Prepare training config
+    if not train_images_dir.exists() or not any(train_images_dir.glob("*.jpg")):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No training images found in output/train/images. Please finalize dataset first."
+        )
+
+    if not train_labels_dir.exists() or not any(train_labels_dir.glob("*.txt")):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No YOLO label files found in output/train/labels. Please finalize dataset first."
+        )
+
+    if not val_images_dir.exists() or not any(val_images_dir.glob("*.jpg")):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No validation images found in output/val/images. Please finalize dataset first."
+        )
+
+    if not val_labels_dir.exists() or not any(val_labels_dir.glob("*.txt")):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No YOLO label files found in output/val/labels. Please finalize dataset first."
+        )
+
+    # --------------------------------------------------
+    # Prepare training config (GPU auto)
+    # --------------------------------------------------
+    def resolve_device(preferred: str | None = None) -> str:
+        """
+        Resolve training device deterministically.
+        preferred:
+          - None or "auto": choose cuda:0 if available else cpu
+          - explicit string like "cuda:0" or "cpu": return as-is
+        """
+        if preferred and preferred != "auto":
+            return preferred
+
+        try:
+            import torch
+            return "cuda:0" if torch.cuda.is_available() else "cpu"
+        except Exception:
+            return "cpu"
+
     config = TrainingConfig(
         dataset_path=OUTPUT_DIR,
         epochs=request.epochs if request else 50,
         batch_size=request.batch_size if request else 16,
         model_arch=request.model_arch if request else "yolov8n.pt",
         img_size=512,
-        device="cpu"  # Change to "cuda" if GPU available
+        device=resolve_device("auto")
     )
 
+    print("DEVICE ", config.device)
+
+    # --------------------------------------------------
     # Generate job ID
+    # --------------------------------------------------
     job_id = str(uuid.uuid4())[:8]
 
+    # --------------------------------------------------
     # Update status
+    # --------------------------------------------------
     with training_lock:
         training_status["is_running"] = True
         training_status["job_id"] = job_id
@@ -1216,7 +1293,9 @@ async def start_training(
         training_status["progress_percent"] = 0
         training_status["metrics"] = {}
 
+    # --------------------------------------------------
     # Start training in background thread
+    # --------------------------------------------------
     thread = threading.Thread(
         target=_run_training,
         args=(config, job_id),
@@ -1233,9 +1312,11 @@ async def start_training(
             "epochs": config.epochs,
             "batch_size": config.batch_size,
             "model_arch": config.model_arch,
-            "img_size": config.img_size
+            "img_size": config.img_size,
+            "device": config.device
         }
     }
+
 
 
 @router.get("/train/status", status_code=200)

@@ -14,7 +14,8 @@ import {
   Grid,
   List,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  FolderOpen
 } from 'lucide-react';
 import { Button } from '@/components/ui/buttons/Button';
 import { useAuth } from '@/hooks/useAuth';
@@ -22,6 +23,8 @@ import { useRouter } from 'next/navigation';
 import detectorService from '@/api/detectorService';
 import apiClient from '@/api/apiClient';
 import DatasetPatchModal from '@/components/dataset/DatasetPatchModal';
+
+
 
 export default function DatasetPage() {
   const { user, loading: authLoading } = useAuth();
@@ -182,6 +185,21 @@ export default function DatasetPage() {
     }
   };
 
+    const handleFinalizeDataset = async () => {
+    const confirmFinalize = window.confirm(
+      "Dataset finalisieren? Das bestehende Dataset wird archiviert."
+    );
+    if (!confirmFinalize) return;
+
+    try {
+      const result = await detectorService.finalizeDataset();
+      setSuccessMessage(`Dataset erstellt! Train: ${result.train_images}, Val: ${result.val_images}`);
+    } catch (err) {
+      setError(`Finalisierung fehlgeschlagen: ${err.message}`);
+    }
+  };
+
+
   const handlePatchClick = async (index) => {
     const patch = filteredPatches[index];
     setSelectedPatchIndex(index);
@@ -317,15 +335,12 @@ export default function DatasetPage() {
             </p>
           </div>
           
-          <Button
-            variant="secondary"
-            onClick={loadPatches}
-            disabled={isLoading}
-            className="flex items-center gap-2"
-          >
-            <RefreshCw size={18} className={isLoading ? 'animate-spin' : ''} />
-            Aktualisieren
-          </Button>
+          {canAccess && (
+            <Button variant="secondary" onClick={handleFinalizeDataset} className="flex items-center gap-2">
+              <FolderOpen size={18} />
+              Dataset finalisieren
+            </Button>
+          )}
         </div>
 
         {/* Messages */}
