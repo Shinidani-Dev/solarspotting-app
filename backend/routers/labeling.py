@@ -154,7 +154,7 @@ class TrainRequest(BaseModel):
     """Request body for /train endpoint"""
     epochs: Optional[int] = 50
     batch_size: Optional[int] = 16
-    model_arch: Optional[str] = "yolov11n.pt"
+    model_arch: Optional[str] = "yolov8n.pt"
 
 
 # ===================================================================
