@@ -481,20 +481,111 @@ async def detect_sunspots_on_patch(
 
 
 # ===================================================================
-# LIST DATASET IMAGES (Alle User)
+# LIST DATASET IMAGES (Alle User) - mit Paging und Filter
 # ===================================================================
 
 @router.get("/dataset/list", status_code=200)
-async def list_dataset_images(user: CURRENT_ACTIVE_USER):
-    """Lists raw images available for labeling."""
-    image_files = sorted([
+async def list_dataset_images(
+        user: CURRENT_ACTIVE_USER,
+        year: Optional[int] = None,
+        month: Optional[int] = None,
+        skip: int = 0,
+        limit: int = 32
+):
+    """
+    Lists raw images available for labeling with optional filtering and pagination.
+
+    Parameters:
+    - year: Filter by year (e.g., 2024)
+    - month: Filter by month (1-12)
+    - skip: Page number (0-indexed). Skips skip * limit images
+    - limit: Number of images per page (default 32, max 100)
+    """
+    limit = min(limit, 100)
+
+    all_files = sorted([
         f.name for f in IMAGES_DIR.iterdir()
         if f.suffix.lower() in [".jpg", ".jpeg", ".png"]
     ])
 
+    # Filter by year/month (SDO filename: YYYYMMDD_HHMMSS_...)
+    filtered_files = []
+    for filename in all_files:
+        try:
+            date_part = filename[:8]
+            file_year = int(date_part[:4])
+            file_month = int(date_part[4:6])
+
+            if year is not None and file_year != year:
+                continue
+            if month is not None and file_month != month:
+                continue
+
+            filtered_files.append(filename)
+        except (ValueError, IndexError):
+            if year is None and month is None:
+                filtered_files.append(filename)
+
+    # Pagination
+    total_filtered = len(filtered_files)
+    start_idx = skip * limit
+    end_idx = start_idx + limit
+    page_files = filtered_files[start_idx:end_idx]
+
+    # Available years/months for filter UI
+    available_years = set()
+    available_months = set()
+    for filename in all_files:
+        try:
+            date_part = filename[:8]
+            available_years.add(int(date_part[:4]))
+            available_months.add(int(date_part[4:6]))
+        except (ValueError, IndexError):
+            pass
+
     return {
-        "total": len(image_files),
-        "files": image_files
+        "total": total_filtered,
+        "total_all": len(all_files),
+        "page": skip,
+        "limit": limit,
+        "total_pages": (total_filtered + limit - 1) // limit if limit > 0 else 0,
+        "files": page_files,
+        "available_years": sorted(available_years, reverse=True),
+        "available_months": sorted(available_months)
+    }
+
+
+# ===================================================================
+# GET NEIGHBOR IMAGES (für Next/Previous Navigation)
+# ===================================================================
+
+@router.get("/dataset/neighbors/{filename}", status_code=200)
+async def get_neighbor_images(
+        filename: str,
+        user: CURRENT_ACTIVE_USER
+):
+    """
+    Returns the previous and next image filenames for navigation.
+    """
+    all_files = sorted([
+        f.name for f in IMAGES_DIR.iterdir()
+        if f.suffix.lower() in [".jpg", ".jpeg", ".png"]
+    ])
+
+    try:
+        current_idx = all_files.index(filename)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Image '{filename}' not found"
+        )
+
+    return {
+        "current": filename,
+        "current_index": current_idx,
+        "total": len(all_files),
+        "previous": all_files[current_idx - 1] if current_idx > 0 else None,
+        "next": all_files[current_idx + 1] if current_idx < len(all_files) - 1 else None
     }
 
 
@@ -842,7 +933,6 @@ async def finalize_dataset(user: CURRENT_LABELER_USER):
     }
 
 
-
 # ===================================================================
 # RESET DATASET (Nur Labeler + Admin)
 # ===================================================================
@@ -968,9 +1058,9 @@ async def get_dataset_stats(user: CURRENT_ADMIN_USER):
     val_labels_dir = OUTPUT_DIR / "val" / "labels"
 
     output_exists = (
-        train_labels_dir.exists()
-        and val_labels_dir.exists()
-        and any(train_labels_dir.glob("*.txt"))
+            train_labels_dir.exists()
+            and val_labels_dir.exists()
+            and any(train_labels_dir.glob("*.txt"))
     )
 
     # --------------------------------------------------
@@ -1016,7 +1106,6 @@ async def get_dataset_stats(user: CURRENT_ADMIN_USER):
         "output_dataset_ready": output_exists,
         "archived_datasets": archived_datasets
     }
-
 
 
 # ===================================================================
@@ -1126,7 +1215,7 @@ def _run_training(config: TrainingConfig, job_id: str):
             epochs=config.epochs,
             batch=config.batch_size,
             imgsz=config.img_size,
-            device=config.device,      # auto / cuda
+            device=config.device,  # auto / cuda
             project=str(config.dataset_path.parent),
             name=f"train_{job_id}",
             pretrained=True,
@@ -1318,7 +1407,6 @@ async def start_training(
     }
 
 
-
 @router.get("/train/status", status_code=200)
 async def get_training_status(user: CURRENT_ADMIN_USER):  # Nur Admin
     """
@@ -1349,22 +1437,35 @@ async def get_training_status(user: CURRENT_ADMIN_USER):  # Nur Admin
 
 
 # ===================================================================
-# LIST DATASET PATCHES (für Dataset Page - Labeler + Admin)
+# LIST DATASET PATCHES (für Dataset Page - Labeler + Admin) - mit Paging
 # ===================================================================
 
 @router.get("/dataset/patches", status_code=200)
-async def list_dataset_patches(user: CURRENT_LABELER_USER):  # Nur Labeler + Admin
+async def list_dataset_patches(
+        user: CURRENT_LABELER_USER,
+        skip: int = 0,
+        limit: int = 42
+):
     """
-    Lists all patches in the dataset with their annotations.
-    Used on the Dataset management page.
+    Lists patches in the dataset with pagination.
 
-    Requires: Labeler or Admin role
+    Parameters:
+    - skip: Page number (0-indexed)
+    - limit: Patches per page (default 42, max 100)
     """
+    limit = min(limit, 100)
+
+    all_patch_files = sorted(PATCHES_DIR.glob("*.jpg"))
+    total_all = len(all_patch_files)
+
+    # Pagination
+    start_idx = skip * limit
+    end_idx = start_idx + limit
+    page_files = all_patch_files[start_idx:end_idx]
+
     patches = []
-
-    for patch_file in sorted(PATCHES_DIR.glob("*.jpg")):
+    for patch_file in page_files:
         ann_file = ANNOTATIONS_DIR / f"{patch_file.name}.json"
-
         annotation = None
         annotation_count = 0
 
@@ -1383,8 +1484,19 @@ async def list_dataset_patches(user: CURRENT_LABELER_USER):  # Nur Labeler + Adm
             "annotation": annotation
         })
 
+    # Count labeled/unlabeled (scan all)
+    labeled_count = 0
+    for patch_file in all_patch_files:
+        if (ANNOTATIONS_DIR / f"{patch_file.name}.json").exists():
+            labeled_count += 1
+
     return {
-        "total": len(patches),
+        "total": total_all,
+        "page": skip,
+        "limit": limit,
+        "total_pages": (total_all + limit - 1) // limit if limit > 0 else 0,
+        "labeled_count": labeled_count,
+        "unlabeled_count": total_all - labeled_count,
         "patches": patches
     }
 
