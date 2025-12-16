@@ -1,5 +1,8 @@
 import base64
+from datetime import datetime
 
+import matplotlib
+matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -30,11 +33,11 @@ img_list = ["storage/20140209_101500_SDO_2048_00.jpg",
             "machine_learning/data/img/normal/2k/20250407_080000_SDO_2048_00.jpg",
             "machine_learning/data/img/normal/4k/20140607_073000_Ic_flat_4k.jpg"]
 
-TESTING = False
+TESTING = True
 TESTING_SOLAR = False
-TESTING_FOR_LOOP = False
+TESTING_FOR_LOOP = True
 TESTING_DATASET_INFO = False
-Training = True
+Training = False
 
 CENTER_X = 117
 CENTER_Y = 1210
@@ -111,9 +114,9 @@ def main():
         ImageProcessor.show_image(rectified, "Solar rectified")
 
     if TESTING:
-        img = ImageProcessor.read_normal_image(img_list[0])
+        img = ImageProcessor.read_normal_image(img_list[1])
 
-        morphed, disk_mask, cx, cy, r = ProcessingPipeline.process_image_through_segmentation_pipeline_v3(img, False)
+        morphed, disk_mask, cx, cy, r = ProcessingPipeline.process_image_through_segmentation_pipeline_v3(img, True)
         print(f"center sundisk ({cx}, {cy}) with radius {r}")
 
         candidates = ImageProcessor.detect_candidates(morphed, disk_mask)
@@ -136,15 +139,17 @@ def main():
 
         print(f"new px {px}, new py {py}")
 
-        rectified = SolarReprojector.rectify_patch(gray, int(px), int(py), 512, cx, cy, r)
-        ImageProcessor.show_image(rectified)
+        # rectified = SolarReprojector.rectify_patch(gray, int(px), int(py), 512, cx, cy, r)
+        # ImageProcessor.show_image(rectified)
 
         if TESTING_FOR_LOOP:
             for cand in merged_candidates:
                 px = cand["cx"]
                 py = cand["cy"]
                 # px, py = ImageProcessor.adjust_candidate_center_axiswise(px, py, cx, cy, r, 512, 0.85)
-                rectified = SolarReprojector.rectify_patch_from_solar_orientation(gray, int(px), int(py), 512, cx, cy, r)
+                s = "20140209_101500_SDO_2048_00"
+                dt = datetime.strptime(s[:15], "%Y%m%d_%H%M%S")
+                rectified = SolarReprojector.rectify_patch_from_solar_orientation(gray, int(px), int(py), 512, cx, cy, r, dt)
                 print(f"candidate px: {px}")
                 print(f"candidate py: {py}")
 

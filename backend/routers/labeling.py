@@ -433,6 +433,8 @@ async def detect_sunspots_on_patch(
         results = model.predict(
             img,
             conf=request.confidence_threshold,
+            iou=0.5,
+            agnostic_nms=True,
             verbose=False
         )
 
@@ -835,19 +837,13 @@ async def finalize_dataset(user: CURRENT_LABELER_USER):
         raise HTTPException(status_code=400, detail="No annotations found.")
 
     parsed = []
-    class_to_id = {}
-    next_id = 0
+
+    # FESTES Klassen-Mapping: A=0, B=1, C=2, D=3, E=4, F=5, H=6
+    class_to_id = {cls: idx for idx, cls in enumerate(SUNSPOT_CLASSES)}
 
     for ann_file in annotation_files:
         with open(ann_file, "r") as f:
             data = json.load(f)
-
-        for ann in data.get("annotations", []):
-            cls = ann["class"]
-            if cls not in class_to_id:
-                class_to_id[cls] = next_id
-                next_id += 1
-
         parsed.append(data)
 
     # --------------------------------------------------
@@ -894,7 +890,7 @@ async def finalize_dataset(user: CURRENT_LABELER_USER):
     # --------------------------------------------------
     # dataset.yaml (YOLO-native)
     # --------------------------------------------------
-    names = [k for k, _ in sorted(class_to_id.items(), key=lambda x: x[1])]
+    names = SUNSPOT_CLASSES
 
     dataset_yaml = {
         "path": str(OUTPUT_DIR.resolve()).replace("\\", "/"),

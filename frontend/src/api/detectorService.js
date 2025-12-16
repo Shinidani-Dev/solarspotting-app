@@ -121,7 +121,7 @@ const detectorService = {
   },
 
   async finalizeDataset() {
-    const res = await api.post("/labeling/finalize");
+    const res = await api.post("/labeling/dataset/finish");
     return res.data;
   },
 
