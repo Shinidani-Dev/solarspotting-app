@@ -12,7 +12,11 @@ import {
   Grid as GridIcon,
   EyeOff as GridOffIcon,
   Trash2,
-  ArrowLeft
+  ArrowLeft,
+  FlipVertical,
+  FlipHorizontal,
+  Save,
+  RotateCcw
 } from 'lucide-react';
 import { Button } from '@/components/ui/buttons/Button';
 import { useAuth } from '@/hooks/useAuth';
@@ -40,6 +44,11 @@ export default function DetectorImagePage() {
   // Image Preview
   const [previewUrl, setPreviewUrl] = useState(null);
   const [isLoadingImage, setIsLoadingImage] = useState(true);
+  
+  // Flip/Flop State (für Preview)
+  const [isFlipped, setIsFlipped] = useState(false);   // Vertical
+  const [isFlopped, setIsFlopped] = useState(false);   // Horizontal
+  const [isSavingTransform, setIsSavingTransform] = useState(false);
   
   // Processing
   const [isProcessing, setIsProcessing] = useState(false);
@@ -101,6 +110,9 @@ export default function DetectorImagePage() {
     setProcessedData(null);
     setLabeledPatches(new Set());
     setShowGlobalGrid(false);
+    // Reset flip/flop when loading new image
+    setIsFlipped(false);
+    setIsFlopped(false);
 
     try {
       // Load neighbors for navigation
@@ -143,6 +155,74 @@ export default function DetectorImagePage() {
   };
 
   // ========================================
+  // FLIP/FLOP HANDLERS
+  // ========================================
+
+  const handleFlip = () => {
+    setIsFlipped(prev => !prev);
+  };
+
+  const handleFlop = () => {
+    setIsFlopped(prev => !prev);
+  };
+
+  const handleResetTransform = () => {
+    setIsFlipped(false);
+    setIsFlopped(false);
+  };
+
+  const handleSaveTransform = async () => {
+    if (!isFlipped && !isFlopped) {
+      setError("Keine Transformation ausgewählt");
+      return;
+    }
+
+    const confirmSave = window.confirm(
+      `Bild wirklich transformieren?\n\n` +
+      `${isFlipped ? '✓ Vertikal spiegeln (Flip)\n' : ''}` +
+      `${isFlopped ? '✓ Horizontal spiegeln (Flop)\n' : ''}\n` +
+      `ACHTUNG: Das Original wird überschrieben!`
+    );
+    
+    if (!confirmSave) return;
+
+    setIsSavingTransform(true);
+    setError(null);
+
+    try {
+      await detectorService.transformImage(filename, isFlipped, isFlopped);
+      setSuccessMessage('Bild erfolgreich transformiert!');
+      
+      // Reset transform state and reload image
+      setIsFlipped(false);
+      setIsFlopped(false);
+      
+      // Reload the image to show the saved transformation
+      const response = await apiClient.get(`/labeling/image/${filename}`, {
+        responseType: 'blob',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      });
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      const url = URL.createObjectURL(response.data);
+      setPreviewUrl(url);
+      
+      // Clear processed data since the image changed
+      setProcessedData(null);
+      
+    } catch (err) {
+      setError(`Transformation fehlgeschlagen: ${err.message}`);
+    } finally {
+      setIsSavingTransform(false);
+    }
+  };
+
+  // Check if any transform is pending
+  const hasTransformPending = isFlipped || isFlopped;
+
+  // ========================================
   // DELETE
   // ========================================
 
@@ -175,6 +255,16 @@ export default function DetectorImagePage() {
   // ========================================
 
   const handleProcessImage = async () => {
+    // Warn if there are unsaved transforms
+    if (hasTransformPending) {
+      const confirmProcess = window.confirm(
+        'Es gibt ungespeicherte Transformationen.\n' +
+        'Möchtest du trotzdem fortfahren?\n\n' +
+        'Die Patches werden vom ORIGINAL-Bild erstellt.'
+      );
+      if (!confirmProcess) return;
+    }
+
     setIsProcessing(true);
     setError(null);
 
@@ -251,6 +341,17 @@ export default function DetectorImagePage() {
   const originalHeight = globalGrid?.image_shape?.[0] || 2048;
 
   // ========================================
+  // COMPUTE TRANSFORM STYLE
+  // ========================================
+
+  const getTransformStyle = () => {
+    const transforms = [];
+    if (isFlipped) transforms.push('scaleY(-1)');
+    if (isFlopped) transforms.push('scaleX(-1)');
+    return transforms.length > 0 ? transforms.join(' ') : 'none';
+  };
+
+  // ========================================
   // RENDER
   // ========================================
 
@@ -321,11 +422,21 @@ export default function DetectorImagePage() {
             </div>
           ) : previewUrl ? (
             <div className="relative w-full max-w-3xl mx-auto">
+              {/* Transform Indicator */}
+              {hasTransformPending && (
+                <div className="absolute top-2 left-2 z-20 bg-amber-500/90 text-slate-900 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2">
+                  <span>Vorschau</span>
+                  {isFlipped && <FlipVertical size={14} />}
+                  {isFlopped && <FlipHorizontal size={14} />}
+                </div>
+              )}
+              
               <img
                 ref={imgRef}
                 src={previewUrl}
                 alt={filename}
-                className="w-full h-auto rounded-lg border border-slate-700"
+                className="w-full h-auto rounded-lg border border-slate-700 transition-transform duration-200"
+                style={{ transform: getTransformStyle() }}
               />
               
               {/* Grid Overlay */}
@@ -334,7 +445,7 @@ export default function DetectorImagePage() {
                   className="absolute inset-0 pointer-events-none"
                   width={renderSize.width}
                   height={renderSize.height}
-                  style={{ zIndex: 10 }}
+                  style={{ zIndex: 10, transform: getTransformStyle() }}
                 >
                   <g transform={`scale(${renderSize.width / originalWidth}, ${renderSize.height / originalHeight})`}>
                     {globalGrid.lat_lines?.map((line, idx) => (
@@ -368,39 +479,99 @@ export default function DetectorImagePage() {
             </div>
           )}
 
-          {/* Action Buttons */}
-          <div className="flex flex-wrap gap-3 mt-4">
-            <Button 
-              variant="primary" 
-              onClick={handleProcessImage} 
-              disabled={isProcessing || isLoadingImage} 
-              className="flex items-center gap-2"
-            >
-              {isProcessing ? <Loader2 size={18} className="animate-spin" /> : <Play size={18} />}
-              {isProcessing ? 'Verarbeite...' : 'Process Image'}
-            </Button>
-
-            <Button
-              variant="secondary"
-              onClick={() => setShowGlobalGrid(g => !g)}
-              disabled={!processedData}
-              className="flex items-center gap-2"
-            >
-              {showGlobalGrid ? <GridOffIcon size={18} /> : <GridIcon size={18} />}
-              {showGlobalGrid ? 'Grid aus' : 'Grid ein'}
-            </Button>
-
+          {/* Action Buttons - Two Rows */}
+          <div className="space-y-3 mt-4">
+            
+            {/* Row 1: Flip/Flop Controls */}
             {canEdit && (
-              <Button 
-                variant="danger" 
-                onClick={handleDeleteImage} 
-                disabled={isDeleting} 
-                className="flex items-center gap-2 ml-auto"
-              >
-                {isDeleting ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
-                Löschen
-              </Button>
+              <div className="flex flex-wrap gap-3 p-3 bg-slate-800/50 rounded-lg border border-slate-700">
+                <span className="text-slate-400 text-sm self-center mr-2">Orientierung:</span>
+                
+                <Button
+                  variant={isFlipped ? "primary" : "secondary"}
+                  onClick={handleFlip}
+                  className="flex items-center gap-2"
+                  title="Vertikal spiegeln (Nord/Süd tauschen)"
+                >
+                  <FlipVertical size={18} />
+                  Flip {isFlipped && '✓'}
+                </Button>
+
+                <Button
+                  variant={isFlopped ? "primary" : "secondary"}
+                  onClick={handleFlop}
+                  className="flex items-center gap-2"
+                  title="Horizontal spiegeln (Ost/West tauschen)"
+                >
+                  <FlipHorizontal size={18} />
+                  Flop {isFlopped && '✓'}
+                </Button>
+
+                {hasTransformPending && (
+                  <>
+                    <Button
+                      variant="secondary"
+                      onClick={handleResetTransform}
+                      className="flex items-center gap-2"
+                      title="Transformation zurücksetzen"
+                    >
+                      <RotateCcw size={18} />
+                      Reset
+                    </Button>
+
+                    <Button
+                      variant="primary"
+                      onClick={handleSaveTransform}
+                      disabled={isSavingTransform}
+                      className="flex items-center gap-2 bg-green-600 hover:bg-green-500"
+                      title="Transformation speichern (überschreibt Original)"
+                    >
+                      {isSavingTransform ? (
+                        <Loader2 size={18} className="animate-spin" />
+                      ) : (
+                        <Save size={18} />
+                      )}
+                      {isSavingTransform ? 'Speichere...' : 'Speichern'}
+                    </Button>
+                  </>
+                )}
+              </div>
             )}
+
+            {/* Row 2: Process and other actions */}
+            <div className="flex flex-wrap gap-3">
+              <Button 
+                variant="primary" 
+                onClick={handleProcessImage} 
+                disabled={isProcessing || isLoadingImage} 
+                className="flex items-center gap-2"
+              >
+                {isProcessing ? <Loader2 size={18} className="animate-spin" /> : <Play size={18} />}
+                {isProcessing ? 'Verarbeite...' : 'Process Image'}
+              </Button>
+
+              <Button
+                variant="secondary"
+                onClick={() => setShowGlobalGrid(g => !g)}
+                disabled={!processedData}
+                className="flex items-center gap-2"
+              >
+                {showGlobalGrid ? <GridOffIcon size={18} /> : <GridIcon size={18} />}
+                {showGlobalGrid ? 'Grid aus' : 'Grid ein'}
+              </Button>
+
+              {canEdit && (
+                <Button 
+                  variant="danger" 
+                  onClick={handleDeleteImage} 
+                  disabled={isDeleting} 
+                  className="flex items-center gap-2 ml-auto"
+                >
+                  {isDeleting ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
+                  Löschen
+                </Button>
+              )}
+            </div>
           </div>
         </div>
 

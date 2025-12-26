@@ -171,6 +171,47 @@ async def get_sunspot_classes(user: CURRENT_ACTIVE_USER):
         "description": "McIntosh Classification System for Sunspot Groups"
     }
 
+# ===================================================================
+# HELPER: Resize image to 2048x2048
+# ===================================================================
+
+TARGET_SIZE = 2048  # Standard size for SDO images
+
+def resize_image_to_target(image_path: Path, target_size: int = TARGET_SIZE) -> dict:
+    """
+    Resizes an image to target_size x target_size if necessary.
+    Overwrites the original file.
+
+    Returns dict with resize info.
+    """
+    img = cv2.imread(str(image_path), cv2.IMREAD_COLOR)
+    if img is None:
+        raise ValueError(f"Could not read image: {image_path}")
+
+    original_height, original_width = img.shape[:2]
+
+    # Check if resize is needed
+    if original_width == target_size and original_height == target_size:
+        return {
+            "resized": False,
+            "original_size": [original_width, original_height],
+            "new_size": [original_width, original_height]
+        }
+
+    # Resize to target_size x target_size
+    img_resized = cv2.resize(img, (target_size, target_size), interpolation=cv2.INTER_AREA)
+
+    # Overwrite original
+    success = cv2.imwrite(str(image_path), img_resized)
+    if not success:
+        raise ValueError(f"Failed to save resized image: {image_path}")
+
+    return {
+        "resized": True,
+        "original_size": [original_width, original_height],
+        "new_size": [target_size, target_size]
+    }
+
 
 # ===================================================================
 # UPLOAD IMAGE (Nur Labeler + Admin)
@@ -184,6 +225,8 @@ async def upload_image(
     """
     Uploads an SDO image to /storage/datasets/images_raw.
     Accepts JPG, JPEG, PNG files.
+
+    Images are automatically resized to 2048x2048 pixels.
 
     Requires: Labeler or Admin role
     """
@@ -202,9 +245,25 @@ async def upload_image(
     file_path = IMAGES_DIR / file.filename
 
     try:
+        # Save uploaded file
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
+
+        # Resize to 2048x2048
+        resize_info = resize_image_to_target(file_path, TARGET_SIZE)
+
+    except ValueError as e:
+        # Cleanup on resize error
+        if file_path.exists():
+            file_path.unlink()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
     except Exception as e:
+        # Cleanup on any error
+        if file_path.exists():
+            file_path.unlink()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error saving file: {str(e)}"
@@ -214,7 +273,8 @@ async def upload_image(
         "message": "Image uploaded successfully",
         "filename": file.filename,
         "file_path": str(file_path),
-        "uploaded_by": user.username
+        "uploaded_by": user.username,
+        "resize": resize_info
     }
 
 
@@ -230,6 +290,8 @@ async def upload_multiple_images(
     """
     Uploads multiple SDO images at once.
     Accepts JPG, JPEG, PNG files.
+
+    Images are automatically resized to 2048x2048 pixels.
 
     Requires: Labeler or Admin role
     """
@@ -252,13 +314,30 @@ async def upload_multiple_images(
         file_path = IMAGES_DIR / file.filename
 
         try:
+            # Save uploaded file
             with open(file_path, "wb") as buffer:
                 shutil.copyfileobj(file.file, buffer)
+
+            # Resize to 2048x2048
+            resize_info = resize_image_to_target(file_path, TARGET_SIZE)
+
             results.append({
                 "filename": file.filename,
-                "success": True
+                "success": True,
+                "resize": resize_info
+            })
+        except ValueError as e:
+            # Cleanup on resize error
+            if file_path.exists():
+                file_path.unlink()
+            errors.append({
+                "filename": file.filename,
+                "error": str(e)
             })
         except Exception as e:
+            # Cleanup on any error
+            if file_path.exists():
+                file_path.unlink()
             errors.append({
                 "filename": file.filename,
                 "error": str(e)
@@ -1531,7 +1610,6 @@ async def get_patch_image(
 # ===================================================================
 # DELETE RAW IMAGE (Labeler or Admin)
 # ===================================================================
-# Add this endpoint to labeling.py
 
 @router.delete("/image/{filename}", status_code=200)
 async def delete_raw_image(
@@ -1574,4 +1652,104 @@ async def delete_raw_image(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error deleting image: {str(e)}"
+        )
+
+# ===================================================================
+# TRANSFORM RAW IMAGE - FLIP/FLOP (Labeler or Admin)
+# ===================================================================
+
+class TransformRequest(BaseModel):
+    """Request body for image transformation"""
+    flip: bool = False  # Vertical flip (mirror top-bottom)
+    flop: bool = False  # Horizontal flip (mirror left-right)
+
+
+@router.post("/image/{filename}/transform", status_code=200)
+async def transform_raw_image(
+        filename: str,
+        request: TransformRequest,
+        user: CURRENT_LABELER_USER
+):
+    """
+    Applies flip/flop transformation to an SDO image and overwrites the original.
+
+    - flip: Vertical flip (mirror top-bottom) - for instruments where N/S is inverted
+    - flop: Horizontal flip (mirror left-right) - for instruments where E/W is inverted
+
+    This is necessary to ensure heliographic north is actually at the top
+    of the image, depending on the telescope/instrument used.
+
+    Required role: Labeler or Admin
+
+    WARNING: This OVERWRITES the original image!
+    """
+    image_path = IMAGES_DIR / filename
+
+    if not image_path.exists() or not image_path.is_file():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Image '{filename}' not found"
+        )
+
+    # Security check - prevent path traversal
+    try:
+        image_path.resolve().relative_to(IMAGES_DIR.resolve())
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied"
+        )
+
+    # Check if any transformation is requested
+    if not request.flip and not request.flop:
+        return {
+            "success": True,
+            "message": "No transformation applied (both flip and flop are False)",
+            "filename": filename,
+            "flip": False,
+            "flop": False
+        }
+
+    try:
+        # Read image
+        img = cv2.imread(str(image_path), cv2.IMREAD_COLOR)
+        if img is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Could not read image: {filename}"
+            )
+
+        # Apply transformations
+        if request.flip:
+            # Vertical flip (around horizontal axis)
+            img = cv2.flip(img, 0)
+
+        if request.flop:
+            # Horizontal flip (around vertical axis)
+            img = cv2.flip(img, 1)
+
+        # Save back to original location
+        success = cv2.imwrite(str(image_path), img)
+
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to save transformed image"
+            )
+
+        return {
+            "success": True,
+            "message": f"Image '{filename}' transformed successfully",
+            "filename": filename,
+            "flip": request.flip,
+            "flop": request.flop,
+            "transformed_by": user.username
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error transforming image: {str(e)}"
         )

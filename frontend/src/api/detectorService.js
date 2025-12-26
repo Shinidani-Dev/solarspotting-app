@@ -49,6 +49,14 @@ const detectorService = {
     return res.data;
   },
 
+  async transformImage(filename, flip, flop) {
+    const res = await api.post(`/labeling/image/${encodeURIComponent(filename)}/transform`, {
+      flip,
+      flop
+    });
+    return res.data;
+  },
+
   // ========================================
   // PROCESSING
   // ========================================
