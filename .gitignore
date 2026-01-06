@@ -56,3 +56,6 @@ data/
 
 # Ignore Log Folder
 logs/
+
+# Ignore ml models and metrices
+models/
