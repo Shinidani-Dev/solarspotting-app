@@ -171,11 +171,13 @@ async def get_sunspot_classes(user: CURRENT_ACTIVE_USER):
         "description": "McIntosh Classification System for Sunspot Groups"
     }
 
+
 # ===================================================================
 # HELPER: Resize image to 2048x2048
 # ===================================================================
 
 TARGET_SIZE = 2048  # Standard size for SDO images
+
 
 def resize_image_to_target(image_path: Path, target_size: int = TARGET_SIZE) -> dict:
     """
@@ -1183,10 +1185,6 @@ async def get_dataset_stats(user: CURRENT_ADMIN_USER):
     }
 
 
-# ===================================================================
-# MODEL INFO (Nur Admin - für ML Page)
-# ===================================================================
-
 @router.get("/model/info", status_code=200)
 async def get_model_info(user: CURRENT_ADMIN_USER):  # Nur Admin
     """
@@ -1206,18 +1204,107 @@ async def get_model_info(user: CURRENT_ADMIN_USER):  # Nur Admin
     # Get file stats
     stat = model_path.stat()
 
+    # Load metrics if available
+    metrics = None
+    metrics_path = model_path.parent / "model_metrics.json"
+    if metrics_path.exists():
+        try:
+            with open(metrics_path, "r") as f:
+                metrics = json.load(f)
+        except Exception as e:
+            print(f"[MODEL INFO] Error loading metrics: {e}")
+
     return {
         "model_available": True,
         "model_path": str(model_path),
         "model_size_mb": round(stat.st_size / (1024 * 1024), 2),
         "last_modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
-        "classes": SUNSPOT_CLASSES
+        "classes": SUNSPOT_CLASSES,
+        "metrics": metrics
     }
 
 
 # ===================================================================
 # TRAINING (Nur Admin)
 # ===================================================================
+
+def extract_training_metrics(results, save_dir: Path) -> dict:
+    """
+    Extracts AP per class and mAP from YOLO training results.
+
+    Returns dict with:
+    - mAP50: mean Average Precision @ IoU=0.5
+    - mAP50_95: mean Average Precision @ IoU=0.5:0.95
+    - ap_per_class: {class_name: AP50, ...}
+    """
+    metrics = {
+        "mAP50": None,
+        "mAP50_95": None,
+        "ap_per_class": {},
+        "extracted_at": datetime.now().isoformat()
+    }
+
+    try:
+        # Method 1: Try to get from results.results_dict
+        if hasattr(results, 'results_dict') and results.results_dict:
+            rd = results.results_dict
+            if "metrics/mAP50(B)" in rd:
+                metrics["mAP50"] = round(float(rd["metrics/mAP50(B)"]), 4)
+            if "metrics/mAP50-95(B)" in rd:
+                metrics["mAP50_95"] = round(float(rd["metrics/mAP50-95(B)"]), 4)
+            print(f"[METRICS] From results_dict: mAP50={metrics['mAP50']}, mAP50-95={metrics['mAP50_95']}")
+
+        # Method 2: Parse results.csv for final epoch metrics
+        results_csv = save_dir / "results.csv"
+        if results_csv.exists():
+            import csv
+            with open(results_csv, "r") as f:
+                reader = csv.DictReader(f)
+                rows = list(reader)
+                if rows:
+                    last_row = rows[-1]
+                    # Try to find mAP columns
+                    for key, value in last_row.items():
+                        key_clean = key.strip()
+                        try:
+                            val = float(value.strip())
+                            if "mAP50-95" in key_clean or "mAP50-95(B)" in key_clean:
+                                if metrics["mAP50_95"] is None:
+                                    metrics["mAP50_95"] = round(val, 4)
+                            elif "mAP50" in key_clean or "mAP50(B)" in key_clean:
+                                if metrics["mAP50"] is None:
+                                    metrics["mAP50"] = round(val, 4)
+                        except (ValueError, AttributeError):
+                            pass
+            print(f"[METRICS] From CSV: mAP50={metrics['mAP50']}, mAP50-95={metrics['mAP50_95']}")
+
+        # Method 3: Try to get per-class AP from box metrics
+        if hasattr(results, 'box') and results.box is not None:
+            box = results.box
+            # ap50 is per-class AP at IoU=0.5
+            if hasattr(box, 'ap50') and box.ap50 is not None:
+                ap50_arr = box.ap50
+                for i, cls_name in enumerate(SUNSPOT_CLASSES):
+                    if i < len(ap50_arr):
+                        metrics["ap_per_class"][cls_name] = round(float(ap50_arr[i]), 4)
+                print(f"[METRICS] Per-class AP: {metrics['ap_per_class']}")
+            # Fallback: maps contains mAP per class
+            elif hasattr(box, 'maps') and box.maps is not None:
+                maps_arr = box.maps
+                for i, cls_name in enumerate(SUNSPOT_CLASSES):
+                    if i < len(maps_arr):
+                        metrics["ap_per_class"][cls_name] = round(float(maps_arr[i]), 4)
+                print(f"[METRICS] Per-class mAP: {metrics['ap_per_class']}")
+
+    except Exception as e:
+        print(f"[METRICS] Error extracting metrics: {e}")
+        import traceback
+        traceback.print_exc()
+        metrics["extraction_error"] = str(e)
+
+    return metrics
+
+
 def _run_training(config: TrainingConfig, job_id: str):
     """Background training function with progress tracking via YOLO callbacks"""
     global training_status
@@ -1307,6 +1394,21 @@ def _run_training(config: TrainingConfig, job_id: str):
         ModelManager.save_active_model(best_model_path)
         invalidate_model_cache()
 
+        # --------------------------------------------------
+        # Extract and save model metrics
+        # --------------------------------------------------
+        print(f"[TRAINING] Extracting metrics from {results.save_dir}")
+        model_metrics = extract_training_metrics(results, Path(results.save_dir))
+
+        # Save metrics to JSON file next to the model
+        metrics_path = ModelManager.get_active_model_path().parent / "model_metrics.json"
+        try:
+            with open(metrics_path, "w") as f:
+                json.dump(model_metrics, f, indent=2)
+            print(f"[TRAINING] Metrics saved to {metrics_path}")
+        except Exception as e:
+            print(f"[TRAINING] Error saving metrics: {e}")
+
         with training_lock:
             training_status["is_running"] = False
             training_status["finished_at"] = datetime.now().isoformat()
@@ -1316,7 +1418,8 @@ def _run_training(config: TrainingConfig, job_id: str):
             training_status["result"] = {
                 "active_model": str(ModelManager.get_active_model_path()),
                 "run_dir": str(results.save_dir),
-                "epochs_trained": config.epochs
+                "epochs_trained": config.epochs,
+                "metrics": model_metrics
             }
 
     except Exception as e:
@@ -1653,6 +1756,7 @@ async def delete_raw_image(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error deleting image: {str(e)}"
         )
+
 
 # ===================================================================
 # TRANSFORM RAW IMAGE - FLIP/FLOP (Labeler or Admin)

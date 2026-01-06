@@ -372,6 +372,59 @@ export default function MLTrainingPage() {
                         </div>
                       </div>
                     )}
+                    
+                    {/* Model Metrics */}
+                    {modelInfo.metrics && (
+                      <div className="mt-3 pt-3 border-t border-slate-700">
+                        <p className="text-xs text-slate-500 mb-2">Performance Metriken:</p>
+                        
+                        {/* mAP Scores */}
+                        <div className="grid grid-cols-2 gap-2 mb-3">
+                          <div className="bg-slate-900/50 rounded p-2 text-center">
+                            <p className="text-xs text-slate-500">mAP@50</p>
+                            <p className="text-lg font-bold text-amber-400">
+                              {modelInfo.metrics.mAP50 !== null 
+                                ? `${(modelInfo.metrics.mAP50 * 100).toFixed(1)}%` 
+                                : '-'}
+                            </p>
+                          </div>
+                          <div className="bg-slate-900/50 rounded p-2 text-center">
+                            <p className="text-xs text-slate-500">mAP@50-95</p>
+                            <p className="text-lg font-bold text-slate-300">
+                              {modelInfo.metrics.mAP50_95 !== null 
+                                ? `${(modelInfo.metrics.mAP50_95 * 100).toFixed(1)}%` 
+                                : '-'}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        {/* Per-Class AP */}
+                        {modelInfo.metrics.ap_per_class && 
+                         Object.keys(modelInfo.metrics.ap_per_class).length > 0 && (
+                          <div>
+                            <p className="text-xs text-slate-500 mb-1">AP pro Klasse:</p>
+                            <div className="space-y-1">
+                              {Object.entries(modelInfo.metrics.ap_per_class)
+                                .sort((a, b) => b[1] - a[1])
+                                .map(([cls, ap]) => (
+                                  <div key={cls} className="flex items-center gap-2">
+                                    <span className="text-xs text-amber-400 w-4">{cls}</span>
+                                    <div className="flex-1 bg-slate-700 rounded-full h-1.5 overflow-hidden">
+                                      <div 
+                                        className="bg-amber-500 h-full rounded-full"
+                                        style={{ width: `${ap * 100}%` }}
+                                      />
+                                    </div>
+                                    <span className="text-xs text-slate-400 w-10 text-right">
+                                      {(ap * 100).toFixed(0)}%
+                                    </span>
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="text-slate-500 text-sm">
