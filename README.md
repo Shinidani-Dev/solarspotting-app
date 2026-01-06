@@ -1,169 +1,211 @@
-# SolarSpotting-App
+# SolarSpotting
 
-Eine Webanwendung zur Erfassung und Analyse von Sonnenflecken mit automatischer Detektion und Klassifizierung mittels CNN.
+A web application for recording and analyzing sunspots with automatic detection and classification using CNN (YOLOv8).
 
-## Projektstruktur
+## Project Structure
 
 ```
-SolarSpotting-App/
-├── backend/          # FastAPI Backend
-├── frontend/         # Next.js Frontend
-└── machine_learning/ # ML-Modelle und Training
+SolarSpotting/
+├── backend/                    # FastAPI Backend
+├── frontend/                   # Next.js Frontend
+├── machine_learning/           # ML models and training
+│   ├── models/
+│   │   ├── active/             # Current active model (best.pt, model_metrics.json)
+│   │   └── archive/            # Archived models (timestamped)
+└── storage/                    # Data storage
+    └── datasets/
+        ├── annotations/        # JSON annotation files
+        ├── archive/            # Archived datasets
+        ├── images_raw/         # Uploaded SDO images
+        ├── output/             # YOLO training data (train/val split)
+        └── patches/            # Generated image patches
 ```
 
-## Installation und Setup
+> **Note:** The `storage/datasets/` folder structure must be created manually before first use. The subfolders are populated automatically by the application.
 
-### 1. Repository klonen
+> **Model Management:** When a new model is trained, the current active model is automatically moved to `archive/` with a timestamp, and the new model replaces it in `active/`.
+
+## Prerequisites
+
+- Python 3.10+
+- Node.js 18+
+- PostgreSQL database
+- Git
+- NVIDIA GPU with CUDA (optional, for faster training and also results with cpu may differ and not be suitable)
+
+## Installation
+
+### 1. Clone the Repository
 
 ```bash
 git clone <repository-url>
-cd SolarSpotting-App
+cd SolarSpotting
 ```
 
-### 2. Backend einrichten
+### 2. Backend Setup
 
-#### 2.1 Datenbank und Umgebungsvariablen
-
-Erstellen Sie eine `.env` Datei im `backend/` Ordner mit folgenden Konfigurationen:
-
-```env
-# Datenbank
-DATABASE_URL=postgresql://username:password@localhost:5432/solarspotting
-
-# JWT Authentication
-SECRET_KEY=your-secret-key-here
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-
-# Server Settings
-HOST=0.0.0.0
-PORT=8000
-
-# CORS Settings
-ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000
-
-# Admin User (wird beim ersten Start erstellt)
-ADMIN_EMAIL=admin@example.com
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=secure-password
-ADMIN_FIRSTNAME=Admin
-ADMIN_LASTNAME=User
-
-# Weitere erforderliche Einstellungen
-ENVIRONMENT=development
-DEBUG=true
-STORAGE_TYPE=local
-STORAGE_PATH=/tmp/solarspotting
-MODEL_PATH=/tmp/models
-USE_GPU=false
-USE_RATE_LIMITER=false
-RATE_LIMIT_PER_MINUTE=100
-REDIS_URL=redis://localhost:6379
-CACHE_TIMEOUT=3600
-LOG_FORMAT=json
-ENABLE_ACCESS_LOG=true
-```
-
-#### 2.2 Virtual Environment erstellen
+#### 2.1 Create Python Virtual Environment
 
 **macOS/Linux:**
 ```bash
-cd backend
 python3 -m venv venv
 source venv/bin/activate
 ```
 
 **Windows:**
 ```bash
-cd backend
 python -m venv venv
 venv\Scripts\activate
 ```
 
-#### 2.3 Python-Pakete installieren
+#### 2.2 Install Dependencies
 
 ```bash
-pip install -r requirements.txt
+# Install backend dependencies
+pip install -r backend/requirements.txt
+
+# Install machine learning module with training dependencies
+pip install -e ./machine_learning[train]
 ```
 
-#### 2.4 Datenbank initialisieren
+#### 2.3 Configure Environment Variables
+
+Create a `.env` file in the `backend/` directory:
+
+```env
+# Database Connection (PostgreSQL / Neon DB)
+DATABASE_URL=postgresql://username:password@hostname:5432/database_name
+
+# Admin User (created on first startup)
+ADMIN_EMAIL=admin@example.com
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=your-secure-password
+ADMIN_FIRSTNAME=Admin
+ADMIN_LASTNAME=User
+
+# JWT Authentication
+SECRET_KEY=your-secret-key-generate-with-openssl-rand-hex-32
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+# Environment
+ENVIRONMENT=development
+DEBUG=True
+
+# Server Settings
+HOST=0.0.0.0
+PORT=8000
+
+# CORS Origins (add your frontend URL)
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000
+
+# Storage Settings
+STORAGE_TYPE=local
+STORAGE_PATH=./storage
+
+# ML Configuration
+MODEL_PATH=./storage/models
+USE_GPU=False
+
+# API Rate Limiting
+USE_RATE_LIMITER=False
+RATE_LIMIT_PER_MINUTE=60
+
+# Redis Cache (optional)
+REDIS_URL=redis://localhost:6379/0
+CACHE_TIMEOUT=300
+
+# Logging
+LOG_FORMAT=json
+ENABLE_ACCESS_LOG=True
+```
+
+> **Note:** Generate a secure SECRET_KEY with: `openssl rand -hex 32`
+
+#### 2.4 Initialize Database
 
 ```bash
+cd backend
 python scripts/db_init.py
 ```
 
-*Alternativ können Sie die SQL-Blöcke aus `scripts/postgres_script.sql` auch manuell in Ihrer Datenbank ausführen.*
+Alternatively, execute the SQL statements from `scripts/postgres_script.sql` manually.
 
-#### 2.5 Backend starten
+#### 2.5 Start Backend
 
 ```bash
 python run_backend.py
 ```
 
-Das Backend ist nun unter `http://localhost:8000` erreichbar. Die API-Dokumentation finden Sie unter `http://localhost:8000/docs`.
+The backend is now available at `http://localhost:8000`.  
+API documentation: `http://localhost:8000/docs`
 
-### 3. Frontend einrichten
-
-#### 3.1 Dependencies installieren
+### 3. Frontend Setup
 
 ```bash
 cd frontend
 npm install
-```
-
-#### 3.2 Frontend starten
-
-```bash
 npm run dev
 ```
 
-Das Frontend ist nun unter `http://localhost:3000` erreichbar.
+The frontend is now available at `http://localhost:3000`.
 
-## Verwendung
+## Usage
 
-1. Öffnen Sie `http://localhost:3000` in Ihrem Browser
-2. Registrieren Sie sich als neuer Benutzer oder melden Sie sich mit dem Admin-Account an
-3. Erstellen Sie Ihre ersten Instrumente und Beobachtungen
+1. Open `http://localhost:3000` in your browser
+2. Log in with the admin account or register a new user
+3. **Labeling Workflow:**
+   - Upload SDO images on the Detector page (official jsoc HMI images can be found here: http://jsoc.stanford.edu/HMI/hmiimage.html)
+   - Process images to generate patches
+   - Label sunspot groups with bounding boxes (McIntosh classification: A, B, C, D, E, F, H)
+   - Finalize dataset to create train/val split
+4. **Training:**
+   - Navigate to CNN Training page (Admin only)
+   - Configure epochs, batch size, and model architecture
+   - Start training and monitor progress
+5. **Detection:**
+   - Use the trained model for automatic sunspot detection
+   - Review and correct predictions
 
-## Entwicklung
+## Architecture
 
-- **Backend API:** `http://localhost:8000/docs` (Swagger UI)
+### Backend (FastAPI)
+- REST API with automatic OpenAPI documentation
+- JWT-based authentication
+- PostgreSQL database with SQLAlchemy ORM
+- Role-based access control (User, Admin, Labeler)
+- Async image processing pipeline
+
+### Frontend (Next.js)
+- React-based user interface
+- Tailwind CSS styling
+- Real-time training progress updates
+
+### Machine Learning
+- YOLOv8 object detection
+- McIntosh sunspot classification (7 classes)
+- Solar image rectification for accurate detection near limb
+- Automatic patch generation and annotation
+
+### Model Metrics
+After training, the following metrics are available:
+- **mAP@50:** Mean Average Precision at IoU ≥ 0.5
+- **mAP@50-95:** Mean Average Precision averaged over IoU 0.50 to 0.95
+- **AP per class:** Average Precision for each McIntosh class
+
+## Development
+
+- **Backend API Docs:** `http://localhost:8000/docs`
 - **Frontend:** `http://localhost:3000`
-- **Backend Logs:** Werden in der Konsole angezeigt
-
-## Voraussetzungen
-
-- Python 3.8+
-- Node.js 16+
-- PostgreSQL Datenbank
-- Git
+- **Backend Logs:** Displayed in console
 
 ## Troubleshooting
 
-- Stellen Sie sicher, dass PostgreSQL läuft und die Datenbankverbindung korrekt konfiguriert ist
-- Überprüfen Sie, dass alle Umgebungsvariablen in der `.env` Datei gesetzt sind
-- Bei Problemen mit dem Frontend: `rm -rf node_modules package-lock.json && npm install`
+- Ensure PostgreSQL is running and the connection string is correct
+- Verify all environment variables are set in `.env`
+- For frontend issues: `rm -rf node_modules package-lock.json && npm install`
+- For GPU/CUDA issues: Check PyTorch CUDA compatibility with your driver version
 
-## Architektur
+## License
 
-### Backend (FastAPI)
-- REST API mit automatischer OpenAPI-Dokumentation
-- JWT-basierte Authentifizierung
-- PostgreSQL Datenbankanbindung mit SQLAlchemy
-- Rollenbasierte Zugriffskontrolle (User, Admin, Labeler)
-
-### Frontend (Next.js)
-- React-basierte Benutzeroberfläche
-- Tailwind CSS für Styling
-
-### Datenbank
-- PostgreSQL mit strukturierten Tabellen für:
-  - Benutzer und Beobachter
-  - Instrumente
-  - Beobachtungen
-  - Tagesdaten
-  - Gruppendaten
-
-## Lizenz
-
-Dieses Projekt wurde im Rahmen einer Projektarbeit an der BFH entwickelt.
+This project was developed as part of a bachelor thesis at BFH (Bern University of Applied Sciences).
