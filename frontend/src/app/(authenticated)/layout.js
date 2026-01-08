@@ -55,7 +55,7 @@ export default function AuthenticatedLayout({ children }) {
   // Items nur für Admin
   const adminNavigation = [
     { name: 'CNN-Training', href: '/cnn-training', Icon: Waypoints },
-    { name: 'Benutzerverwaltung', href: '/user-admin', Icon: Users },
+    { name: 'User Management', href: '/user-admin', Icon: Users },
   ];
 
   // Kombiniere Navigation basierend auf Berechtigungen

@@ -29,7 +29,7 @@ export default function InputsPage() {
           />
           
           <Input 
-            label="Passwort" 
+            label="Password" 
             id="password" 
             type="password" 
             placeholder="••••••••" 

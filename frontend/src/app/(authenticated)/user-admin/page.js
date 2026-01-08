@@ -288,10 +288,10 @@ export default function UserAdminPage() {
           <div>
             <h1 className="text-3xl font-bold text-amber-400 flex items-center gap-3">
               <Users size={32} />
-              Benutzerverwaltung
+              User Management
             </h1>
             <p className="text-slate-400 mt-1">
-              Benutzer verwalten, erstellen und Berechtigungen setzen
+              Create Users and manage their permissions
             </p>
           </div>
           
@@ -312,7 +312,7 @@ export default function UserAdminPage() {
               className="flex items-center gap-2"
             >
               <UserPlus size={18} />
-              Neuer Benutzer
+              New User
             </Button>
           </div>
         </div>
@@ -336,16 +336,16 @@ export default function UserAdminPage() {
           <div className="card">
             <h2 className="text-xl font-semibold text-slate-200 mb-4 flex items-center gap-2">
               <UserPlus size={24} className="text-amber-400" />
-              Neuen Benutzer erstellen
+              Create New User
             </h2>
             
             <form onSubmit={handleCreateUser} className="space-y-4">
               {/* Login-Daten */}
               <div className="border-b border-slate-700 pb-4 mb-4">
-                <h3 className="text-sm font-medium text-amber-400 mb-3">Login-Daten</h3>
+                <h3 className="text-sm font-medium text-amber-400 mb-3">Login Data</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm text-slate-400 mb-1">Benutzername *</label>
+                    <label className="block text-sm text-slate-400 mb-1">Username *</label>
                     <input
                       type="text"
                       required
@@ -369,7 +369,7 @@ export default function UserAdminPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-slate-400 mb-1">Passwort *</label>
+                    <label className="block text-sm text-slate-400 mb-1">Password *</label>
                     <input
                       type="password"
                       required
@@ -379,17 +379,17 @@ export default function UserAdminPage() {
                       placeholder="Min. 8 Zeichen"
                       minLength={8}
                     />
-                    <p className="text-xs text-slate-500 mt-1">Gross-/Kleinbuchstaben, Zahl, Sonderzeichen</p>
+                    <p className="text-xs text-slate-500 mt-1">Uppercase letter, lowercase letter, number, special character</p>
                   </div>
                 </div>
               </div>
 
               {/* Persönliche Daten */}
               <div className="border-b border-slate-700 pb-4 mb-4">
-                <h3 className="text-sm font-medium text-amber-400 mb-3">Persönliche Daten</h3>
+                <h3 className="text-sm font-medium text-amber-400 mb-3">Personal Data</h3>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
-                    <label className="block text-sm text-slate-400 mb-1">Vorname *</label>
+                    <label className="block text-sm text-slate-400 mb-1">First Name *</label>
                     <input
                       type="text"
                       required
@@ -400,7 +400,7 @@ export default function UserAdminPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-slate-400 mb-1">Nachname *</label>
+                    <label className="block text-sm text-slate-400 mb-1">Last Name *</label>
                     <input
                       type="text"
                       required
@@ -411,7 +411,7 @@ export default function UserAdminPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-slate-400 mb-1">Geburtsdatum *</label>
+                    <label className="block text-sm text-slate-400 mb-1">Date of Birth *</label>
                     <input
                       type="date"
                       required
@@ -421,16 +421,15 @@ export default function UserAdminPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-slate-400 mb-1">Geschlecht *</label>
+                    <label className="block text-sm text-slate-400 mb-1">Gender *</label>
                     <select
                       required
                       value={newUser.gender}
                       onChange={(e) => setNewUser(prev => ({ ...prev, gender: e.target.value }))}
                       className="form-input w-full"
                     >
-                      <option value="male">Männlich</option>
-                      <option value="female">Weiblich</option>
-                      <option value="other">Andere</option>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
                     </select>
                   </div>
                 </div>
@@ -438,10 +437,10 @@ export default function UserAdminPage() {
 
               {/* Adresse */}
               <div className="border-b border-slate-700 pb-4 mb-4">
-                <h3 className="text-sm font-medium text-amber-400 mb-3">Adresse</h3>
+                <h3 className="text-sm font-medium text-amber-400 mb-3">Address</h3>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="md:col-span-2">
-                    <label className="block text-sm text-slate-400 mb-1">Strasse *</label>
+                    <label className="block text-sm text-slate-400 mb-1">Street *</label>
                     <input
                       type="text"
                       required
@@ -474,7 +473,7 @@ export default function UserAdminPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-slate-400 mb-1">Kanton</label>
+                    <label className="block text-sm text-slate-400 mb-1">Canton</label>
                     <input
                       type="text"
                       value={newUser.state}
@@ -484,7 +483,7 @@ export default function UserAdminPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-slate-400 mb-1">Land * (2-Buchstaben)</label>
+                    <label className="block text-sm text-slate-400 mb-1">Country * (2-Letters)</label>
                     <input
                       type="text"
                       required
@@ -500,10 +499,10 @@ export default function UserAdminPage() {
 
               {/* Kontakt (Optional) */}
               <div className="border-b border-slate-700 pb-4 mb-4">
-                <h3 className="text-sm font-medium text-slate-500 mb-3">Kontakt (optional)</h3>
+                <h3 className="text-sm font-medium text-slate-500 mb-3">Contact (optional)</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm text-slate-400 mb-1">Firma</label>
+                    <label className="block text-sm text-slate-400 mb-1">Company</label>
                     <input
                       type="text"
                       value={newUser.company}
@@ -513,7 +512,7 @@ export default function UserAdminPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-slate-400 mb-1">Telefon</label>
+                    <label className="block text-sm text-slate-400 mb-1">Phone</label>
                     <input
                       type="tel"
                       value={newUser.phone}
@@ -560,7 +559,7 @@ export default function UserAdminPage() {
         {/* Users Table */}
         <div className="card overflow-hidden">
           <h2 className="text-xl font-semibold text-slate-200 mb-4">
-            Benutzer ({users.length})
+            User ({users.length})
           </h2>
           
           {isLoading ? (
@@ -568,17 +567,17 @@ export default function UserAdminPage() {
               <Loader2 className="animate-spin text-amber-400" size={32} />
             </div>
           ) : users.length === 0 ? (
-            <p className="text-slate-500 text-center py-10">Keine Benutzer gefunden</p>
+            <p className="text-slate-500 text-center py-10">No Users found</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-slate-400 border-b border-slate-700">
-                    <th className="pb-3 pl-4">Benutzer</th>
-                    <th className="pb-3">Rolle</th>
+                    <th className="pb-3 pl-4">User</th>
+                    <th className="pb-3">Role</th>
                     <th className="pb-3">Labeler</th>
                     <th className="pb-3">Status</th>
-                    <th className="pb-3 pr-4 text-right">Aktionen</th>
+                    <th className="pb-3 pr-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -613,10 +612,10 @@ export default function UserAdminPage() {
                               ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'
                               : 'bg-slate-700 text-slate-500 hover:bg-slate-600'
                           }`}
-                          title="Klicken um zu ändern"
+                          title="Click to change"
                         >
                           <Tag size={12} />
-                          {u.is_labeler ? 'Ja' : 'Nein'}
+                          {u.is_labeler ? 'Yes' : 'No'}
                         </button>
                       </td>
                       <td className="py-3">
@@ -628,7 +627,7 @@ export default function UserAdminPage() {
                               ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
                               : 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
                           } ${u.id === user?.id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          title={u.id === user?.id ? 'Kann sich selbst nicht deaktivieren' : 'Klicken um zu ändern'}
+                          title={u.id === user?.id ? 'Not able to deactivate yourself' : 'click to change'}
                         >
                           {u.active ? <Check size={12} /> : <X size={12} />}
                           {u.active ? 'Aktiv' : 'Inaktiv'}
@@ -649,7 +648,7 @@ export default function UserAdminPage() {
                             className={`p-1.5 text-slate-400 hover:text-red-400 transition-colors ${
                               u.id === user?.id ? 'opacity-30 cursor-not-allowed' : ''
                             }`}
-                            title={u.id === user?.id ? 'Kann sich selbst nicht löschen' : 'Löschen'}
+                            title={u.id === user?.id ? 'Not able to delete yourself' : 'Delete'}
                           >
                             <Trash2 size={16} />
                           </button>
@@ -669,7 +668,7 @@ export default function UserAdminPage() {
             <div className="bg-slate-900 rounded-xl shadow-2xl p-6 w-full max-w-md">
               <h2 className="text-xl font-semibold text-slate-200 mb-4 flex items-center gap-2">
                 <Edit2 size={24} className="text-amber-400" />
-                Benutzer bearbeiten
+                Edit User
               </h2>
               
               {/* User Info (read-only) */}
@@ -692,7 +691,7 @@ export default function UserAdminPage() {
                     <option value="admin">Admin</option>
                   </select>
                   {editingUser.id === user?.id && (
-                    <p className="text-slate-500 text-xs mt-1">Eigene Rolle kann nicht geändert werden</p>
+                    <p className="text-slate-500 text-xs mt-1">Cannot change own role</p>
                   )}
                 </div>
 
@@ -704,7 +703,7 @@ export default function UserAdminPage() {
                       onChange={(e) => setEditingUser(prev => ({ ...prev, is_labeler: e.target.checked }))}
                       className="form-checkbox"
                     />
-                    <span className="text-slate-300 flex-1">Labeler-Berechtigung</span>
+                    <span className="text-slate-300 flex-1">Labeler-Rights</span>
                     <Tag size={16} className={editingUser.is_labeler ? 'text-amber-400' : 'text-slate-500'} />
                   </label>
 
@@ -716,7 +715,7 @@ export default function UserAdminPage() {
                       className="form-checkbox"
                       disabled={editingUser.id === user?.id}
                     />
-                    <span className="text-slate-300 flex-1">Benutzer aktiv</span>
+                    <span className="text-slate-300 flex-1">User active</span>
                     {editingUser.active ? (
                       <CheckCircle size={16} className="text-green-400" />
                     ) : (
@@ -732,7 +731,7 @@ export default function UserAdminPage() {
                       className="form-checkbox"
                       disabled={editingUser.id === user?.id}
                     />
-                    <span className="text-slate-300 flex-1">Benutzer gesperrt</span>
+                    <span className="text-slate-300 flex-1">User blocked</span>
                     {editingUser.locked ? (
                       <Lock size={16} className="text-red-400" />
                     ) : (
@@ -756,7 +755,7 @@ export default function UserAdminPage() {
                   variant="secondary"
                   onClick={() => setEditingUser(null)}
                 >
-                  Abbrechen
+                  Cancel
                 </Button>
               </div>
             </div>
