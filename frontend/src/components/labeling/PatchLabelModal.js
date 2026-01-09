@@ -29,7 +29,7 @@ export default function PatchLabelModal({
   if (!patch.patch_image_base64) {
   return (
     <div className="p-10 text-center text-red-400">
-      Patch enthält kein Bild.
+      No image in Patch.
     </div>
   );
 }
@@ -37,7 +37,7 @@ export default function PatchLabelModal({
 
   const handleSave = async () => {
     if (boxes.length === 0) {
-      alert("Keine Annotationen vorhanden.");
+      alert("No Annotations found.");
       return;
     }
 
@@ -111,7 +111,7 @@ export default function PatchLabelModal({
             onClick={() => setShowGrid(g => !g)}
           >
             {showGrid ? <GridOffIcon size={18} className="mr-2" /> : <GridIcon size={18} className="mr-2" />}
-            {showGrid ? "Grid ausblenden" : "Grid einblenden"}
+            {showGrid ? "Hide grid" : "Display grid"}
           </Button>
 
           <Button

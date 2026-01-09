@@ -14,7 +14,7 @@ export default function LabelingHeader({
   const router = useRouter();
 
   const handleCancel = () => {
-    if (confirm('Möchten Sie das Labeling wirklich abbrechen? Alle nicht gespeicherten Änderungen gehen verloren.')) {
+    if (confirm('Co you really want to cancel labeling? All unsaved changes will be lost.')) {
       router.push('/labeling');
     }
   };
@@ -27,10 +27,10 @@ export default function LabelingHeader({
           SolarSpotting Labeling
         </h1>
         <p className="text-slate-400">
-          Bild {currentIndex + 1} / {totalImages}
+          Images {currentIndex + 1} / {totalImages}
         </p>
         <p className="mt-1 text-sm text-slate-500">
-          Quelle: <span className="text-slate-300">storage/datasets/images_raw</span>
+          Source: <span className="text-slate-300">storage/datasets/images_raw</span>
         </p>
       </div>
 
@@ -42,7 +42,7 @@ export default function LabelingHeader({
             onClick={onPrev}
           >
             <ArrowLeft size={18} className="mr-2" />
-            Zurück
+            Back
           </Button>
         )}
 
@@ -51,7 +51,7 @@ export default function LabelingHeader({
           variant="secondary" 
           onClick={onNext}
         >
-          Weiter
+          Next
           <ArrowRight size={18} className="ml-2" />
         </Button>
 
@@ -61,16 +61,16 @@ export default function LabelingHeader({
           onClick={handleCancel}
         >
           <X size={18} className="mr-2" />
-          Abbrechen
+          Cancel
         </Button>
 
-        {/* Labeling abschließen */}
+        {/* Labeling abschliessen */}
         <Button 
           variant="primary" 
           onClick={onFinish}
         >
           <CheckCircle size={20} className="mr-2" />
-          Labeling abschließen
+          Finish labeling
         </Button>
       </div>
 

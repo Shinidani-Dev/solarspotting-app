@@ -87,7 +87,7 @@ export default function UserAdminPage() {
       const response = await apiClient.get('/users/');
       setUsers(response.data || []);
     } catch (err) {
-      setError(`Fehler beim Laden der Benutzer: ${err.message}`);
+      setError(`Error while loading users: ${err.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -111,7 +111,7 @@ export default function UserAdminPage() {
       if (!payload.mobile) delete payload.mobile;
 
       await apiClient.post('/users/', payload);
-      setSuccessMessage(`Benutzer "${newUser.username}" erfolgreich erstellt!`);
+      setSuccessMessage(`User "${newUser.username}" created successfully!`);
       setShowNewUserForm(false);
       resetNewUserForm();
       loadUsers();
@@ -120,9 +120,9 @@ export default function UserAdminPage() {
       if (Array.isArray(detail)) {
         // Pydantic validation errors
         const messages = detail.map(d => d.msg).join(', ');
-        setError(`Validierungsfehler: ${messages}`);
+        setError(`Validationerror: ${messages}`);
       } else {
-        setError(`Fehler beim Erstellen: ${detail || err.message}`);
+        setError(`Error while creating user: ${detail || err.message}`);
       }
     } finally {
       setIsCreating(false);
@@ -169,11 +169,11 @@ export default function UserAdminPage() {
         active: editingUser.active
       });
 
-      setSuccessMessage(`Benutzer "${editingUser.username}" aktualisiert!`);
+      setSuccessMessage(`User "${editingUser.username}" updated!`);
       setEditingUser(null);
       loadUsers();
     } catch (err) {
-      setError(`Fehler beim Aktualisieren: ${err.response?.data?.detail || err.message}`);
+      setError(`Error while updating: ${err.response?.data?.detail || err.message}`);
     } finally {
       setIsUpdating(false);
     }
@@ -189,10 +189,10 @@ export default function UserAdminPage() {
       await apiClient.put(`/users/${userToUpdate.id}`, {
         active: !userToUpdate.active
       });
-      setSuccessMessage(`${userToUpdate.username} ${!userToUpdate.active ? 'aktiviert' : 'deaktiviert'}`);
+      setSuccessMessage(`${userToUpdate.username} ${!userToUpdate.active ? 'active' : 'inactive'}`);
       loadUsers();
     } catch (err) {
-      setError(`Fehler: ${err.response?.data?.detail || err.message}`);
+      setError(`Error: ${err.response?.data?.detail || err.message}`);
     }
   };
 
@@ -202,10 +202,10 @@ export default function UserAdminPage() {
       await apiClient.put(`/users/${userToUpdate.id}`, {
         is_labeler: !userToUpdate.is_labeler
       });
-      setSuccessMessage(`Labeler-Status für ${userToUpdate.username} geändert`);
+      setSuccessMessage(`Labeler status for ${userToUpdate.username} changed`);
       loadUsers();
     } catch (err) {
-      setError(`Fehler: ${err.response?.data?.detail || err.message}`);
+      setError(`Error: ${err.response?.data?.detail || err.message}`);
     }
   };
 
@@ -215,21 +215,21 @@ export default function UserAdminPage() {
 
   const handleDeleteUser = async (userToDelete) => {
     if (userToDelete.id === user?.id) {
-      setError("Sie können sich nicht selbst löschen!");
+      setError("You cannot delete yourself!");
       return;
     }
 
     const confirmDelete = window.confirm(
-      `Benutzer "${userToDelete.username}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
+      `Do you really want to delete user "${userToDelete.username}"? This action can not be undone.`
     );
     if (!confirmDelete) return;
 
     try {
       await apiClient.delete(`/users/${userToDelete.id}`);
-      setSuccessMessage(`Benutzer "${userToDelete.username}" gelöscht`);
+      setSuccessMessage(`User "${userToDelete.username}" deleted`);
       loadUsers();
     } catch (err) {
-      setError(`Fehler beim Löschen: ${err.message}`);
+      setError(`Error while deleting: ${err.message}`);
     }
   };
 
@@ -268,8 +268,8 @@ export default function UserAdminPage() {
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
         <div className="text-center">
           <AlertCircle className="mx-auto text-red-400 mb-4" size={48} />
-          <h1 className="text-2xl font-bold text-slate-200 mb-2">Zugriff verweigert</h1>
-          <p className="text-slate-400">Diese Seite ist nur für Administratoren zugänglich.</p>
+          <h1 className="text-2xl font-bold text-slate-200 mb-2">Access denied</h1>
+          <p className="text-slate-400">This page is only accessible by admin users.</p>
         </div>
       </div>
     );
@@ -303,7 +303,7 @@ export default function UserAdminPage() {
               className="flex items-center gap-2"
             >
               <RefreshCw size={18} className={isLoading ? 'animate-spin' : ''} />
-              Aktualisieren
+              Refresh
             </Button>
             
             <Button
@@ -451,7 +451,7 @@ export default function UserAdminPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-slate-400 mb-1">PLZ *</label>
+                    <label className="block text-sm text-slate-400 mb-1">Zip *</label>
                     <input
                       type="text"
                       required
@@ -462,7 +462,7 @@ export default function UserAdminPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-slate-400 mb-1">Ort *</label>
+                    <label className="block text-sm text-slate-400 mb-1">City *</label>
                     <input
                       type="text"
                       required

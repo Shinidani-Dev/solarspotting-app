@@ -46,17 +46,17 @@ export default function LabelingSetupPage() {
     <div className="p-8 space-y-6">
       <div className="p-6 card">
         <h1 className="mb-2 text-2xl font-bold text-amber-400">
-          Dataset Vorbereitung
+          Dataset Definition
         </h1>
 
         {isLoading ? (
           <div className="flex items-center gap-2 text-slate-400">
             <Loader2 className="w-4 h-4 animate-spin" />
-            <span>Lade Bilder...</span>
+            <span>Load Images</span>
           </div>
         ) : (
           <p className="text-slate-300">
-            Bilder im Dataset: <span className="font-bold text-amber-400">{totalImages}</span>
+            Images in Dataset: <span className="font-bold text-amber-400">{totalImages}</span>
           </p>
         )}
       </div>
@@ -71,7 +71,7 @@ export default function LabelingSetupPage() {
           disabled={classes.length === 0 || isLoading}
         >
           <Play size={20} className="mr-2" />
-          Labeling starten
+          Start Labeling
         </Button>
       </div>
     </div>

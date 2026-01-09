@@ -28,7 +28,7 @@ export default function ProfilePage() {
   if (!user) {
     return (
       <div className="p-4 border-l-4 rounded-md bg-amber-500/10 border-amber-500">
-        <p className="text-amber-400">Keine Benutzerdaten verfügbar.</p>
+        <p className="text-amber-400">No User Data Available</p>
       </div>
     );
   }
@@ -38,29 +38,29 @@ export default function ProfilePage() {
       <Heading>Your Profile</Heading>
       <div className="grid grid-cols-1 gap-6">
         <Card>
-          <h2 className="mb-4 text-lg font-semibold">Persönliche Informationen</h2>
+          <h2 className="mb-4 text-lg font-semibold">Personal Information</h2>
           
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="mb-4">
-              <p className="text-sm text-slate-400">Benutzername</p>
+              <p className="text-sm text-slate-400">Username</p>
               <p className="font-medium">{user.username}</p>
             </div>
             
             <div className="mb-4">
-              <p className="text-sm text-slate-400">Rolle</p>
+              <p className="text-sm text-slate-400">Role</p>
               <p className="font-medium">
-                {user.role === 'admin' ? 'Administrator' : 'Benutzer'}
+                {user.role === 'admin' ? 'Administrator' : 'User'}
                 {user.is_labeler && ' (Labeler)'}
               </p>
             </div>
             
             <div className="mb-4">
-              <p className="text-sm text-slate-400">Vorname</p>
+              <p className="text-sm text-slate-400">First Name</p>
               <p className="font-medium">{user.firstname}</p>
             </div>
             
             <div className="mb-4">
-              <p className="text-sm text-slate-400">Nachname</p>
+              <p className="text-sm text-slate-400">Last Name</p>
               <p className="font-medium">{user.lastname}</p>
             </div>
             
@@ -70,72 +70,71 @@ export default function ProfilePage() {
             </div>
             
             <div className="mb-4">
-              <p className="text-sm text-slate-400">Geburtsdatum</p>
+              <p className="text-sm text-slate-400">Date of Birth</p>
               <p className="font-medium">{formatDate(user.date_of_birth)}</p>
             </div>
             
             <div className="mb-4">
-              <p className="text-sm text-slate-400">Geschlecht</p>
+              <p className="text-sm text-slate-400">Gender</p>
               <p className="font-medium">
-                {user.gender === 'male' ? 'Männlich' : 
-                user.gender === 'female' ? 'Weiblich' : 'Divers'}
+                {user.gender === 'male' ? 'Male' : 'Female'}
               </p>
             </div>
             
             <div className="mb-4">
-              <p className="text-sm text-slate-400">Unternehmen</p>
-              <p className="font-medium">{user.company || 'Nicht angegeben'}</p>
+              <p className="text-sm text-slate-400">Company</p>
+              <p className="font-medium">{user.company || 'Not specified'}</p>
             </div>
           </div>
         </Card>
         
         <Card>
-          <h2 className="mb-4 text-lg font-semibold">Kontaktdaten</h2>
+          <h2 className="mb-4 text-lg font-semibold">Contact Data</h2>
           
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="mb-4">
-              <p className="text-sm text-slate-400">Straße</p>
+              <p className="text-sm text-slate-400">Street</p>
               <p className="font-medium">{user.street}</p>
             </div>
             
             <div className="mb-4">
-              <p className="text-sm text-slate-400">PLZ</p>
+              <p className="text-sm text-slate-400">Zip</p>
               <p className="font-medium">{user.postal_code}</p>
             </div>
             
             <div className="mb-4">
-              <p className="text-sm text-slate-400">Stadt</p>
+              <p className="text-sm text-slate-400">City</p>
               <p className="font-medium">{user.city}</p>
             </div>
             
             <div className="mb-4">
-              <p className="text-sm text-slate-400">Bundesland/Kanton</p>
-              <p className="font-medium">{user.state || 'Nicht angegeben'}</p>
+              <p className="text-sm text-slate-400">Canton</p>
+              <p className="font-medium">{user.state || 'Not specified'}</p>
             </div>
             
             <div className="mb-4">
-              <p className="text-sm text-slate-400">Land</p>
+              <p className="text-sm text-slate-400">Country</p>
               <p className="font-medium">{user.country}</p>
             </div>
             
             <div className="mb-4">
-              <p className="text-sm text-slate-400">Telefon</p>
-              <p className="font-medium">{user.phone || 'Nicht angegeben'}</p>
+              <p className="text-sm text-slate-400">Phonenumber</p>
+              <p className="font-medium">{user.phone || 'Not specified'}</p>
             </div>
             
             <div className="mb-4">
-              <p className="text-sm text-slate-400">Mobil</p>
-              <p className="font-medium">{user.mobile || 'Nicht angegeben'}</p>
+              <p className="text-sm text-slate-400">Mobile</p>
+              <p className="font-medium">{user.mobile || 'Not specified'}</p>
             </div>
           </div>
         </Card>
         
         <Card>
-          <h2 className="mb-4 text-lg font-semibold">Konto Informationen</h2>
+          <h2 className="mb-4 text-lg font-semibold">Account Information</h2>
           
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="mb-4">
-              <p className="text-sm text-slate-400">Konto erstellt am</p>
+              <p className="text-sm text-slate-400">Account created at</p>
               <p className="font-medium">{formatDateTime(user.tstamp)}</p>
             </div>
             
@@ -143,7 +142,7 @@ export default function ProfilePage() {
               <p className="text-sm text-slate-400">Status</p>
               <div className="flex items-center mt-1">
                 <span className={`inline-block w-3 h-3 rounded-full mr-2 ${user.active ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                <span>{user.active ? 'Aktiv' : 'Inaktiv'}</span>
+                <span>{user.active ? 'Active' : 'Inactive'}</span>
               </div>
             </div>
           </div>

@@ -117,7 +117,7 @@ export default function MLTrainingPage() {
           // Refresh model info after training completes
           loadModelInfo();
           if (status.status === 'completed') {
-            setSuccessMessage("Training erfolgreich abgeschlossen!");
+            setSuccessMessage("Training successfully completed!");
           }
         }
       } catch (err) {
@@ -161,16 +161,16 @@ export default function MLTrainingPage() {
 
   const handleStartTraining = async () => {
     if (!datasetStats?.output_dataset_ready) {
-      setError("Bitte zuerst das Dataset finalisieren (auf der Detector-Seite).");
+      setError("Please finalize dataset first.");
       return;
     }
 
     const confirmTrain = window.confirm(
-      `Training starten mit folgenden Einstellungen?\n\n` +
-      `Epochen: ${trainingConfig.epochs}\n` +
+      `Start training with the following settings?\n\n` +
+      `Epochs: ${trainingConfig.epochs}\n` +
       `Batch Size: ${trainingConfig.batchSize}\n` +
-      `Modell: ${trainingConfig.modelArch}\n\n` +
-      `Das aktuelle Modell wird archiviert.`
+      `Model: ${trainingConfig.modelArch}\n\n` +
+      `Current model will be archived.`
     );
     if (!confirmTrain) return;
 
@@ -185,10 +185,10 @@ export default function MLTrainingPage() {
         total_epochs: trainingConfig.epochs,
         progress_percent: 0
       });
-      setSuccessMessage("Training gestartet!");
+      setSuccessMessage("Training started!");
       startTrainingPolling();
     } catch (err) {
-      setError(`Training konnte nicht gestartet werden: ${err.message}`);
+      setError(`Training could not be started: ${err.message}`);
     }
   };
 
@@ -227,8 +227,8 @@ export default function MLTrainingPage() {
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
         <div className="text-center">
           <AlertCircle className="mx-auto text-red-400 mb-4" size={48} />
-          <h1 className="text-2xl font-bold text-slate-200 mb-2">Zugriff verweigert</h1>
-          <p className="text-slate-400">Diese Seite ist nur für Administratoren zugänglich.</p>
+          <h1 className="text-2xl font-bold text-slate-200 mb-2">Access denied</h1>
+          <p className="text-slate-400">This page is only accessible by admin users.</p>
         </div>
       </div>
     );
@@ -249,12 +249,12 @@ export default function MLTrainingPage() {
               <Brain size={32} />
               CNN Training
             </h1>
-            <p className="text-slate-400 mt-1">YOLO Model Training und Verwaltung</p>
+            <p className="text-slate-400 mt-1">YOLO Model Training and Evaluation</p>
           </div>
           
           <Button variant="secondary" onClick={loadAllData} className="flex items-center gap-2">
             <RefreshCw size={18} />
-            Aktualisieren
+            Refresh
           </Button>
         </div>
 
@@ -275,7 +275,7 @@ export default function MLTrainingPage() {
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="animate-spin text-amber-400" size={40} />
-            <span className="ml-3 text-slate-300">Lade Daten...</span>
+            <span className="ml-3 text-slate-300">Loading data...</span>
           </div>
         ) : (
           <>
@@ -285,14 +285,14 @@ export default function MLTrainingPage() {
               <div className="card">
                 <div className="flex items-center gap-3 mb-3">
                   <Cpu className="text-amber-400" size={24} />
-                  <h2 className="text-lg font-semibold text-slate-200">Training Status</h2>
+                  <h2 className="text-lg font-semibold text-slate-200">Training status</h2>
                 </div>
                 
                 {trainingStatus?.is_running ? (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
                       <Loader2 className="animate-spin text-amber-400" size={16} />
-                      <span className="text-amber-400">Training läuft...</span>
+                      <span className="text-amber-400">Training running...</span>
                     </div>
                     <div className="w-full bg-slate-700 rounded-full h-2">
                       <div 
@@ -318,9 +318,9 @@ export default function MLTrainingPage() {
                         trainingStatus?.status === 'failed' ? 'text-red-400' :
                         'text-slate-400'
                       }>
-                        {trainingStatus?.status === 'completed' ? '✓ Abgeschlossen' :
-                         trainingStatus?.status === 'failed' ? '✗ Fehlgeschlagen' :
-                         'Bereit'}
+                        {trainingStatus?.status === 'completed' ? 'Completed' :
+                         trainingStatus?.status === 'failed' ? 'Failed' :
+                         'Ready'}
                       </span>
                     </div>
                     {trainingStatus?.finished_at && (
@@ -339,7 +339,7 @@ export default function MLTrainingPage() {
               <div className="card">
                 <div className="flex items-center gap-3 mb-3">
                   <BarChart3 className="text-amber-400" size={24} />
-                  <h2 className="text-lg font-semibold text-slate-200">Modell Info</h2>
+                  <h2 className="text-lg font-semibold text-slate-200">Model Info</h2>
                 </div>
                 
                 {modelInfo?.model_available ? (
@@ -347,22 +347,22 @@ export default function MLTrainingPage() {
                     <div className="flex justify-between">
                       <span className="text-slate-400">Status:</span>
                       <span className="text-green-400 flex items-center gap-1">
-                        <CheckCircle size={14} /> Verfügbar
+                        <CheckCircle size={14} /> Available
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-400">Grösse:</span>
+                      <span className="text-slate-400">Size:</span>
                       <span className="text-slate-200">{modelInfo.model_size_mb} MB</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-400">Aktualisiert:</span>
+                      <span className="text-slate-400">Refreshed:</span>
                       <span className="text-slate-200">
                         {new Date(modelInfo.last_modified).toLocaleDateString('de-CH')}
                       </span>
                     </div>
                     {modelInfo.classes && (
                       <div className="mt-3 pt-3 border-t border-slate-700">
-                        <p className="text-xs text-slate-500 mb-1">Klassen:</p>
+                        <p className="text-xs text-slate-500 mb-1">Classes:</p>
                         <div className="flex flex-wrap gap-1">
                           {modelInfo.classes.map(cls => (
                             <span key={cls} className="px-2 py-0.5 bg-slate-700 rounded text-xs text-slate-300">
@@ -376,7 +376,7 @@ export default function MLTrainingPage() {
                     {/* Model Metrics */}
                     {modelInfo.metrics && (
                       <div className="mt-3 pt-3 border-t border-slate-700">
-                        <p className="text-xs text-slate-500 mb-2">Performance Metriken:</p>
+                        <p className="text-xs text-slate-500 mb-2">Performance Metrices:</p>
                         
                         {/* mAP Scores */}
                         <div className="grid grid-cols-2 gap-2 mb-3">
@@ -402,7 +402,7 @@ export default function MLTrainingPage() {
                         {modelInfo.metrics.ap_per_class && 
                          Object.keys(modelInfo.metrics.ap_per_class).length > 0 && (
                           <div>
-                            <p className="text-xs text-slate-500 mb-1">AP pro Klasse:</p>
+                            <p className="text-xs text-slate-500 mb-1">AP per class:</p>
                             <div className="space-y-1">
                               {Object.entries(modelInfo.metrics.ap_per_class)
                                 .sort((a, b) => b[1] - a[1])
@@ -429,7 +429,7 @@ export default function MLTrainingPage() {
                 ) : (
                   <div className="text-slate-500 text-sm">
                     <AlertCircle size={18} className="inline mr-2" />
-                    Kein trainiertes Modell vorhanden
+                    No trainged model available
                   </div>
                 )}
               </div>
@@ -452,7 +452,7 @@ export default function MLTrainingPage() {
                       <span className="text-slate-200">{datasetStats.patches}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-400">Annotationen:</span>
+                      <span className="text-slate-400">Annotations:</span>
                       <span className="text-slate-200">{datasetStats.annotations}</span>
                     </div>
                     <div className="flex justify-between">
@@ -460,16 +460,16 @@ export default function MLTrainingPage() {
                       <span className="text-slate-200">{datasetStats.total_bboxes}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-400">Dataset bereit:</span>
+                      <span className="text-slate-400">Dataset ready:</span>
                       <span className={datasetStats.output_dataset_ready ? 'text-green-400' : 'text-yellow-400'}>
-                        {datasetStats.output_dataset_ready ? 'Ja' : 'Nein'}
+                        {datasetStats.output_dataset_ready ? 'Yes' : 'No'}
                       </span>
                     </div>
                     
                     {/* Class Distribution */}
                     {datasetStats.class_distribution && (
                       <div className="mt-3 pt-3 border-t border-slate-700">
-                        <p className="text-xs text-slate-500 mb-2">Klassenverteilung:</p>
+                        <p className="text-xs text-slate-500 mb-2">Class distribution:</p>
                         <div className="grid grid-cols-4 gap-1 text-xs">
                           {Object.entries(datasetStats.class_distribution).map(([cls, count]) => (
                             <div key={cls} className="text-center">
@@ -484,7 +484,7 @@ export default function MLTrainingPage() {
                 ) : (
                   <div className="text-slate-500 text-sm">
                     <Loader2 className="animate-spin inline mr-2" size={16} />
-                    Lade...
+                    Loading...
                   </div>
                 )}
               </div>
@@ -494,13 +494,13 @@ export default function MLTrainingPage() {
             <div className="card">
               <div className="flex items-center gap-3 mb-4">
                 <Settings className="text-amber-400" size={24} />
-                <h2 className="text-lg font-semibold text-slate-200">Training Konfiguration</h2>
+                <h2 className="text-lg font-semibold text-slate-200">Training configuration</h2>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 {/* Epochs */}
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">Epochen</label>
+                  <label className="block text-sm text-slate-400 mb-1">Epochs</label>
                   <input
                     type="number"
                     min="1"
@@ -530,17 +530,17 @@ export default function MLTrainingPage() {
                 
                 {/* Model Architecture */}
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">Modell Architektur</label>
+                  <label className="block text-sm text-slate-400 mb-1">Modell architecture</label>
                   <select
                     value={trainingConfig.modelArch}
                     onChange={(e) => setTrainingConfig(prev => ({ ...prev, modelArch: e.target.value }))}
                     disabled={trainingStatus?.is_running}
                     className="form-input w-full"
                   >
-                    <option value="yolov8n.pt">YOLOv8 Nano (schnell)</option>
+                    <option value="yolov8n.pt">YOLOv8 Nano (fast)</option>
                     <option value="yolov8s.pt">YOLOv8 Small</option>
                     <option value="yolov8m.pt">YOLOv8 Medium</option>
-                    <option value="yolov8l.pt">YOLOv8 Large (langsam)</option>
+                    <option value="yolov8l.pt">YOLOv8 Large (slow)</option>
                   </select>
                 </div>
               </div>
@@ -562,7 +562,7 @@ export default function MLTrainingPage() {
                 
                 {!datasetStats?.output_dataset_ready && (
                   <span className="text-yellow-400 text-sm">
-                    ⚠️ Dataset muss zuerst finalisiert werden
+                    Dataset must be finalised first
                   </span>
                 )}
               </div>
@@ -574,7 +574,7 @@ export default function MLTrainingPage() {
                 <div className="flex items-center gap-3 mb-4">
                   <Archive className="text-amber-400" size={24} />
                   <h2 className="text-lg font-semibold text-slate-200">
-                    Archivierte Datasets ({datasetStats.archived_datasets.length})
+                    Archived datasets ({datasetStats.archived_datasets.length})
                   </h2>
                 </div>
                 
@@ -583,9 +583,9 @@ export default function MLTrainingPage() {
                   <table className="w-full text-sm">
                     <thead className="sticky top-0 bg-slate-800">
                       <tr className="text-left text-slate-400 border-b border-slate-700">
-                        <th className="p-3">Dateiname</th>
-                        <th className="p-3">Grösse</th>
-                        <th className="p-3">Erstellt</th>
+                        <th className="p-3">Filename</th>
+                        <th className="p-3">Size</th>
+                        <th className="p-3">Created</th>
                       </tr>
                     </thead>
                     <tbody>

@@ -250,7 +250,7 @@ export default function DetectorPatchModal({
                 className="flex items-center gap-2"
               >
                 {showGrid ? <GridOffIcon size={18} /> : <GridIcon size={18} />}
-                {showGrid ? "Grid ausblenden" : "Grid einblenden"}
+                {showGrid ? "Hide grid" : "Display grid"}
               </Button>
 
               {/* Save Button - nur Labeler/Admin */}

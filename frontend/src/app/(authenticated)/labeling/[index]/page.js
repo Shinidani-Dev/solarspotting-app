@@ -40,7 +40,7 @@ export default function LabelingPage({ params }) {
         setTotalImages(data.total_images);
       } catch (e) {
         console.error(e);
-        alert('Fehler beim Laden des Bildes: ' + (e.message || 'Unbekannter Fehler'));
+        alert('Error while loading image: ' + (e.message || 'Unknown error'));
       } finally {
         setIsLoadingImage(false);
       }
@@ -65,13 +65,13 @@ export default function LabelingPage({ params }) {
     setLabeledPatches(prev => new Set([...prev, patchFile]));
   };
 
-  // Handler für "Labeling abschließen" mit Notification
+  // Handler für "Labeling abschliessen" mit Notification
   const handleFinish = async () => {
     // Bestätigungsdialog
     const confirmed = window.confirm(
-      '🎯 Labeling abschließen?\n\n' +
-      'Möchten Sie das Labeling wirklich abschließen und das Dataset erstellen?\n\n' +
-      'Das Dataset wird für das Training vorbereitet.'
+      'Finish labeling?\n\n' +
+      'Do you really want to finish labeling and create the dataset?\n\n' +
+      'Preparing dataset for training...'
     );
 
     if (!confirmed) return;
@@ -82,26 +82,26 @@ export default function LabelingPage({ params }) {
       // Dataset erstellen
       const result = await labelingService.finalize();
       
-      console.log('Dataset erstellt:', result);
+      console.log('Dataset created:', result);
 
       // Erfolgs-Benachrichtigung
       alert(
-        '✅ Dataset erfolgreich erstellt!\n\n' +
-        'Das Dataset wurde gespeichert und ist nun bereit für das Training.\n\n' +
-        'Sie werden zur Übersicht weitergeleitet.'
+        'Dataset created!\n\n' +
+        'Dataset saved and ready for training.\n\n' +
+        'You are being redirected to the dashboard...'
       );
 
       // Zurück zur Labeling-Übersicht navigieren
       router.push('/labeling');
       
     } catch (err) {
-      console.error('Fehler beim Erstellen des Datasets:', err);
+      console.error('Error while creating dataset:', err);
       
       // Fehler-Benachrichtigung
       alert(
-        '❌ Fehler beim Erstellen des Datasets\n\n' +
-        'Es ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.\n\n' +
-        'Fehlerdetails: ' + (err.message || 'Unbekannter Fehler')
+        'Error while creating dataset\n\n' +
+        'An error occurred please try again later.\n\n' +
+        'Details: ' + (err.message || 'Unkonwn error')
       );
     } finally {
       setIsFinishing(false);
@@ -141,7 +141,7 @@ export default function LabelingPage({ params }) {
         <div className="p-12 card">
           <div className="flex flex-col items-center justify-center gap-4">
             <Loader2 className="w-12 h-12 text-amber-500 animate-spin" />
-            <p className="text-lg text-slate-400">Lade Bild {index + 1}...</p>
+            <p className="text-lg text-slate-400">Loading Image {index + 1}...</p>
           </div>
         </div>
       )}
@@ -180,18 +180,18 @@ export default function LabelingPage({ params }) {
 
             {/* Titel */}
             <h3 className="mb-3 text-2xl font-bold text-amber-400">
-              Dataset wird erstellt...
+              Creating dataset...
             </h3>
 
             {/* Beschreibung */}
             <p className="mb-4 text-slate-400">
-              Bitte warten Sie einen Moment, während das Dataset vorbereitet wird.
+              Please wait a moment while the dataset is being processed.
             </p>
 
             {/* Progress Info */}
             <div className="flex items-center justify-center gap-2 text-sm text-slate-500">
               <CheckCircle size={16} className="text-emerald-500" />
-              <span>Annotationen werden verarbeitet</span>
+              <span>Annotations are being processed</span>
             </div>
           </div>
         </div>

@@ -39,7 +39,7 @@ export default function OriginalImageViewer({ data }) {
   if (!data) {
     return (
       <div className="p-6 mb-6 text-center card text-slate-400">
-        Kein Bild geladen…
+        No Image loaded...
       </div>
     );
   }
@@ -58,14 +58,14 @@ export default function OriginalImageViewer({ data }) {
     <div className="p-6 mb-6 card">
 
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <h2 className="text-xl font-bold text-amber-400">Originalbild</h2>
+        <h2 className="text-xl font-bold text-amber-400">Original Image</h2>
 
         <Button
           variant="secondary"
           onClick={() => setShowGrid((s) => !s)}
         >
           {showGrid ? <GridOffIcon size={18} className="mr-2" /> : <GridIcon size={18} className="mr-2" />}
-          {showGrid ? 'Grid ausblenden' : 'Grid einblenden'}
+          {showGrid ? 'Hide grid' : 'Display grid'}
         </Button>
       </div>
 
@@ -75,11 +75,11 @@ export default function OriginalImageViewer({ data }) {
           <span className="font-mono text-slate-200">{file_name}</span>
         </p>
         <p>
-          <span className="text-slate-500">Datum:</span>{' '}
+          <span className="text-slate-500">Date:</span>{' '}
           <span className="text-slate-200">{metadata.date}</span>
         </p>
         <p>
-          <span className="text-slate-500">Uhrzeit:</span>{' '}
+          <span className="text-slate-500">Time:</span>{' '}
           <span className="text-slate-200">{metadata.time}</span>
         </p>
       </div>
