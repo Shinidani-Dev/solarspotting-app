@@ -116,11 +116,11 @@ export default function DetectorPatchModal({
         setBoxes(detectedBoxes);
       } else {
         setBoxes([]);
-        setError("Keine Sonnenflecken erkannt.");
+        setError("No Sunspots detected.");
       }
     } catch (err) {
       console.error("Detection error:", err);
-      setError("Fehler bei der Erkennung. Ist das Modell trainiert?");
+      setError("Error detecting. Is the model trained?");
     } finally {
       setIsDetecting(false);
     }
@@ -131,7 +131,7 @@ export default function DetectorPatchModal({
     if (!canEdit) return;
     
     if (boxes.length === 0) {
-      const confirmSave = window.confirm("Keine Annotationen vorhanden. Trotzdem als 'leer' speichern?");
+      const confirmSave = window.confirm("No annotations found. Save as 'empty'?");
       if (!confirmSave) return;
     }
 
@@ -156,7 +156,7 @@ export default function DetectorPatchModal({
       onClose();
     } catch (err) {
       console.error("Save error:", err);
-      setError("Fehler beim Speichern.");
+      setError("Error while saving");
     } finally {
       setIsSaving(false);
     }
@@ -166,7 +166,7 @@ export default function DetectorPatchModal({
   const handleDelete = async () => {
     if (!canEdit) return;
     
-    const confirmDelete = window.confirm("Patch und Annotation wirklich löschen?");
+    const confirmDelete = window.confirm("Do you really want to delete the patch and its annotations?");
     if (!confirmDelete) return;
 
     try {
@@ -176,7 +176,7 @@ export default function DetectorPatchModal({
       onClose();
     } catch (err) {
       console.error("Delete error:", err);
-      setError("Fehler beim Löschen.");
+      setError("Error while deleting.");
     }
   };
 
@@ -201,19 +201,19 @@ export default function DetectorPatchModal({
         {/* Header */}
         <div className="mb-4">
           <h2 className="text-2xl font-bold text-amber-400">
-            {canEdit ? 'Patch labeln' : 'Patch ansehen'}
+            {canEdit ? 'Label patch' : 'View patch'}
           </h2>
           <p className="text-slate-400 text-sm mt-1 truncate">
             {patch.patch_file}
           </p>
           {hasExistingAnnotation && (
             <span className="inline-block mt-2 px-3 py-1 bg-green-500/20 text-green-400 text-xs rounded-full">
-              Bestehende Annotationen geladen
+              Existing annotations loaded
             </span>
           )}
           {!canEdit && (
             <span className="inline-block mt-2 ml-2 px-3 py-1 bg-slate-700 text-slate-400 text-xs rounded-full">
-              Nur Ansicht (keine Bearbeitungsrechte)
+              Readonly (No editing rights)
             </span>
           )}
         </div>
@@ -222,7 +222,7 @@ export default function DetectorPatchModal({
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="animate-spin text-amber-400" size={40} />
-            <span className="ml-3 text-slate-300">Lade Annotation...</span>
+            <span className="ml-3 text-slate-300">Loading annotations...</span>
           </div>
         ) : (
           <>
@@ -266,7 +266,7 @@ export default function DetectorPatchModal({
                   ) : (
                     <Save size={18} />
                   )}
-                  {isSaving ? "Speichern..." : "Speichern"}
+                  {isSaving ? "Saving..." : "Save"}
                 </Button>
               )}
 
@@ -277,7 +277,7 @@ export default function DetectorPatchModal({
                   onClick={handleDelete}
                   className="flex items-center gap-2"
                 >
-                  <Trash2 size={18} /> Löschen
+                  <Trash2 size={18} /> Delete
                 </Button>
               )}
             </div>
@@ -292,13 +292,13 @@ export default function DetectorPatchModal({
             {/* Class Selection - nur für Labeler/Admin */}
             {canEdit && (
               <div className="mb-4 flex items-center gap-4">
-                <label className="text-slate-300 font-medium">Klasse zum Zeichnen:</label>
+                <label className="text-slate-300 font-medium">Class to draw:</label>
                 <select
                   className="form-input w-48"
                   value={selectedClass}
                   onChange={(e) => setSelectedClass(e.target.value)}
                 >
-                  <option value="">-- Auswählen --</option>
+                  <option value="">-- Select --</option>
                   {classes.map((cls) => (
                     <option key={cls.name} value={cls.name}>
                       {cls.name}
@@ -312,7 +312,7 @@ export default function DetectorPatchModal({
                   />
                 )}
                 <span className="text-slate-500 text-sm">
-                  (Klicken und ziehen | Verschieben | Ecken skalieren)
+                  (Click and drag | scale on edges)
                 </span>
               </div>
             )}
@@ -327,7 +327,7 @@ export default function DetectorPatchModal({
                 setBoxes={canEdit ? setBoxes : () => {}} // Nur setzen wenn canEdit
                 classes={classes}
                 selectedClass={selectedClass}
-                readOnly={!canEdit}  // NEU: readOnly mode wenn nicht canEdit
+                readOnly={!canEdit} 
               />
             </div>
 
@@ -335,7 +335,7 @@ export default function DetectorPatchModal({
             {boxes.length > 0 && (
               <div className="mt-4">
                 <h3 className="text-lg font-semibold text-slate-300 mb-2">
-                  Annotationen ({boxes.length})
+                  Annotations ({boxes.length})
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                   {boxes.map((box, idx) => (

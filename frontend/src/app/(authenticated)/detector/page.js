@@ -20,8 +20,8 @@ import detectorService from '@/api/detectorService';
 import apiClient from '@/api/apiClient';
 
 const MONTH_NAMES = [
-  '', 'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
-  'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'
+  '', 'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
 export default function DetectorPage() {
@@ -100,7 +100,7 @@ export default function DetectorPage() {
         loadThumbnails(result.files);
       }
     } catch (err) {
-      setError(`Fehler beim Laden: ${err.message}`);
+      setError(`Error while loading: ${err.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -174,15 +174,15 @@ export default function DetectorPage() {
     try {
       if (files.length === 1) {
         await detectorService.uploadImage(files[0]);
-        setSuccessMessage(`"${files[0].name}" hochgeladen!`);
+        setSuccessMessage(`"${files[0].name}" uploaded!`);
       } else {
         const result = await detectorService.uploadMultipleImages(files);
-        setSuccessMessage(`${result.uploaded.length} von ${files.length} Bildern hochgeladen!`);
+        setSuccessMessage(`${result.uploaded.length} of ${files.length} Images uploaded!`);
       }
       
       await loadImages(currentPage);
     } catch (err) {
-      setError(`Upload fehlgeschlagen: ${err.message}`);
+      setError(`Upload failed: ${err.message}`);
     } finally {
       setIsUploading(false);
       e.target.value = '';
@@ -203,15 +203,15 @@ export default function DetectorPage() {
 
   const handleFinalizeDataset = async () => {
     const confirmFinalize = window.confirm(
-      "Dataset finalisieren? Das bestehende Dataset wird archiviert."
+      "Finalise dataset? The existing dataset will be archived."
     );
     if (!confirmFinalize) return;
 
     try {
       const result = await detectorService.finalizeDataset();
-      setSuccessMessage(`Dataset erstellt! Train: ${result.train_images}, Val: ${result.val_images}`);
+      setSuccessMessage(`Dataset created! Train: ${result.train_images}, Val: ${result.val_images}`);
     } catch (err) {
-      setError(`Finalisierung fehlgeschlagen: ${err.message}`);
+      setError(`Dataset creation failed: ${err.message}`);
     }
   };
 
@@ -245,14 +245,14 @@ export default function DetectorPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-amber-400">Sunspot Detector</h1>
-            <p className="text-slate-400 mt-1">SDO Bilder verarbeiten und Sonnenflecken annotieren</p>
+            <p className="text-slate-400 mt-1">Process Sun Images and detect Sunspots</p>
           </div>
           
           <div className="flex items-center gap-3">
             {canEdit && (
               <Button variant="secondary" onClick={handleFinalizeDataset} className="flex items-center gap-2">
                 <FolderOpen size={18} />
-                Dataset finalisieren
+                Finalise dataset
               </Button>
             )}
           </div>
@@ -283,7 +283,7 @@ export default function DetectorPage() {
                 onChange={(e) => handleYearChange(e.target.value)}
                 className="form-input w-32"
               >
-                <option value="">Alle Jahre</option>
+                <option value="">All years</option>
                 {availableYears.map(year => (
                   <option key={year} value={year}>{year}</option>
                 ))}
@@ -296,7 +296,7 @@ export default function DetectorPage() {
               onChange={(e) => handleMonthChange(e.target.value)}
               className="form-input w-40"
             >
-              <option value="">Alle Monate</option>
+              <option value="">All months</option>
               {availableMonths.map(month => (
                 <option key={month} value={month}>{MONTH_NAMES[month]}</option>
               ))}
@@ -305,7 +305,7 @@ export default function DetectorPage() {
             {/* Clear Filters */}
             {(filterYear || filterMonth) && (
               <Button variant="secondary" onClick={clearFilters} className="text-sm">
-                Filter zurücksetzen
+                Reset filter
               </Button>
             )}
 
@@ -314,7 +314,7 @@ export default function DetectorPage() {
 
             {/* Image Count */}
             <span className="text-slate-400 text-sm">
-              {totalImages} Bilder
+              {totalImages} Images
             </span>
 
             {/* Refresh */}
@@ -345,7 +345,7 @@ export default function DetectorPage() {
                   className="flex items-center gap-2"
                 >
                   {isUploading ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
-                  {isUploading ? 'Hochladen...' : 'Upload'}
+                  {isUploading ? 'Uploading...' : 'Upload'}
                 </Button>
               </>
             )}
@@ -362,11 +362,11 @@ export default function DetectorPage() {
               className="flex items-center gap-2"
             >
               <ChevronLeft size={18} />
-              Zurück
+              Previous
             </Button>
             
             <div className="flex items-center gap-2">
-              <span className="text-slate-400">Seite</span>
+              <span className="text-slate-400">Page</span>
               <select
                 value={currentPage}
                 onChange={(e) => handlePageChange(parseInt(e.target.value))}
@@ -376,7 +376,7 @@ export default function DetectorPage() {
                   <option key={i} value={i}>{i + 1}</option>
                 ))}
               </select>
-              <span className="text-slate-400">von {totalPages}</span>
+              <span className="text-slate-400">of {totalPages}</span>
             </div>
             
             <Button
@@ -385,7 +385,7 @@ export default function DetectorPage() {
               disabled={currentPage >= totalPages - 1}
               className="flex items-center gap-2"
             >
-              Weiter
+              Next
               <ChevronRight size={18} />
             </Button>
           </div>
@@ -395,15 +395,15 @@ export default function DetectorPage() {
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="animate-spin text-amber-400" size={40} />
-            <span className="ml-3 text-slate-300">Lade Bilder...</span>
+            <span className="ml-3 text-slate-300">Loading images...</span>
           </div>
         ) : imageList.length === 0 ? (
           <div className="text-center py-20">
             <ImageIcon className="mx-auto text-slate-600 mb-4" size={48} />
             <p className="text-slate-400">
               {(filterYear || filterMonth) 
-                ? 'Keine Bilder gefunden mit diesen Filtern' 
-                : 'Keine Bilder vorhanden'}
+                ? 'No images found for the selected filter.' 
+                : 'No images found.'}
             </p>
             {canEdit && (
               <p className="text-slate-500 text-sm mt-2">
@@ -461,11 +461,11 @@ export default function DetectorPage() {
               className="flex items-center gap-2"
             >
               <ChevronLeft size={18} />
-              Zurück
+              Previous
             </Button>
             
             <span className="text-slate-400">
-              Seite {currentPage + 1} von {totalPages} ({totalImages} Bilder)
+              Page {currentPage + 1} of {totalPages} ({totalImages} images)
             </span>
             
             <Button
@@ -474,7 +474,7 @@ export default function DetectorPage() {
               disabled={currentPage >= totalPages - 1}
               className="flex items-center gap-2"
             >
-              Weiter
+              Next
               <ChevronRight size={18} />
             </Button>
           </div>

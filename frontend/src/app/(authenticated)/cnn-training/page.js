@@ -557,7 +557,7 @@ export default function MLTrainingPage() {
                   ) : (
                     <Play size={18} />
                   )}
-                  {trainingStatus?.is_running ? 'Training läuft...' : 'Training starten'}
+                  {trainingStatus?.is_running ? 'Training running...' : 'Start training'}
                 </Button>
                 
                 {!datasetStats?.output_dataset_ready && (

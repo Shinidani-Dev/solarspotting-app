@@ -542,14 +542,14 @@ export default function UserAdminPage() {
                   className="flex items-center gap-2"
                 >
                   {isCreating ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
-                  {isCreating ? 'Erstelle...' : 'Benutzer erstellen'}
+                  {isCreating ? 'Creating...' : 'Create user'}
                 </Button>
                 <Button
                   type="button"
                   variant="secondary"
                   onClick={() => { setShowNewUserForm(false); resetNewUserForm(); }}
                 >
-                  Abbrechen
+                  Cancel
                 </Button>
               </div>
             </form>
@@ -749,7 +749,7 @@ export default function UserAdminPage() {
                   className="flex items-center gap-2"
                 >
                   {isUpdating ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
-                  {isUpdating ? 'Speichere...' : 'Speichern'}
+                  {isUpdating ? 'Saving...' : 'Save'}
                 </Button>
                 <Button
                   variant="secondary"

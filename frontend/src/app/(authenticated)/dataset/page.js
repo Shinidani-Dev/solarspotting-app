@@ -105,7 +105,7 @@ export default function DatasetPage() {
         loadThumbnails(result.patches);
       }
     } catch (err) {
-      setError(`Fehler beim Laden: ${err.message}`);
+      setError(`Error while loading: ${err.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -176,15 +176,15 @@ export default function DatasetPage() {
 
   const handleFinalizeDataset = async () => {
     const confirmFinalize = window.confirm(
-      "Dataset finalisieren? Das bestehende Dataset wird archiviert."
+      "Finalise dataset? The existing dataset will be archived."
     );
     if (!confirmFinalize) return;
 
     try {
       const result = await detectorService.finalizeDataset();
-      setSuccessMessage(`Dataset erstellt! Train: ${result.train_images}, Val: ${result.val_images}`);
+      setSuccessMessage(`Dataset created! Train: ${result.train_images}, Val: ${result.val_images}`);
     } catch (err) {
-      setError(`Finalisierung fehlgeschlagen: ${err.message}`);
+      setError(`Creation failed: ${err.message}`);
     }
   };
 
@@ -232,7 +232,7 @@ export default function DatasetPage() {
           return newUrls;
         });
       }
-      setSuccessMessage("Patch gelöscht");
+      setSuccessMessage("Patch deleted");
       loadPatches(currentPage);
     } else {
       setPatches(prev => prev.map(p => 
@@ -240,7 +240,7 @@ export default function DatasetPage() {
           ? { ...p, has_annotation: true }
           : p
       ));
-      setSuccessMessage("Annotation gespeichert");
+      setSuccessMessage("Annotation saved");
     }
   };
 
@@ -279,8 +279,8 @@ export default function DatasetPage() {
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
         <div className="text-center">
           <AlertCircle className="mx-auto text-red-400 mb-4" size={48} />
-          <h1 className="text-2xl font-bold text-slate-200 mb-2">Zugriff verweigert</h1>
-          <p className="text-slate-400">Diese Seite ist nur für Labeler und Administratoren zugänglich.</p>
+          <h1 className="text-2xl font-bold text-slate-200 mb-2">Access denied</h1>
+          <p className="text-slate-400">This page is only accessible for labeler and administrators.</p>
         </div>
       </div>
     );
@@ -297,14 +297,14 @@ export default function DatasetPage() {
           <div>
             <h1 className="text-3xl font-bold text-amber-400 flex items-center gap-3">
               <Database size={32} />
-              Dataset verwalten
+              Manage dataset
             </h1>
-            <p className="text-slate-400 mt-1">Patches und Annotationen bearbeiten</p>
+            <p className="text-slate-400 mt-1">Edit patches and anotations</p>
           </div>
           
           <Button variant="secondary" onClick={handleFinalizeDataset} className="flex items-center gap-2">
             <FolderOpen size={18} />
-            Dataset finalisieren
+            Finalise dataset
           </Button>
         </div>
 
@@ -340,7 +340,7 @@ export default function DatasetPage() {
             </div>
             <div>
               <p className="text-2xl font-bold text-green-400">{labeledCount}</p>
-              <p className="text-slate-400 text-sm">Gelabelt</p>
+              <p className="text-slate-400 text-sm">Labeled</p>
             </div>
           </div>
           
@@ -350,7 +350,7 @@ export default function DatasetPage() {
             </div>
             <div>
               <p className="text-2xl font-bold text-yellow-400">{unlabeledCount}</p>
-              <p className="text-slate-400 text-sm">Ohne Label</p>
+              <p className="text-slate-400 text-sm">Without label</p>
             </div>
           </div>
         </div>
@@ -363,7 +363,7 @@ export default function DatasetPage() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                 <input
                   type="text"
-                  placeholder="Patch suchen..."
+                  placeholder="Searching patch..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="form-input w-full pl-10"
@@ -378,9 +378,9 @@ export default function DatasetPage() {
                 onChange={(e) => setFilterMode(e.target.value)}
                 className="form-input"
               >
-                <option value="all">Alle ({totalPatches})</option>
-                <option value="labeled">Gelabelt ({labeledCount})</option>
-                <option value="unlabeled">Ohne Label ({unlabeledCount})</option>
+                <option value="all">All ({totalPatches})</option>
+                <option value="labeled">Labeled ({labeledCount})</option>
+                <option value="unlabeled">-Without label ({unlabeledCount})</option>
               </select>
             </div>
 
@@ -415,7 +415,7 @@ export default function DatasetPage() {
               className="flex items-center gap-2"
             >
               <ChevronLeft size={18} />
-              Zurück
+              Previous
             </Button>
             
             <div className="flex items-center gap-2">
@@ -438,7 +438,7 @@ export default function DatasetPage() {
               disabled={currentPage >= totalPages - 1}
               className="flex items-center gap-2"
             >
-              Weiter
+              Next
               <ChevronRight size={18} />
             </Button>
           </div>
@@ -455,8 +455,8 @@ export default function DatasetPage() {
             <ImageIcon className="mx-auto text-slate-600 mb-4" size={48} />
             <p className="text-slate-400">
               {searchTerm || filterMode !== 'all' 
-                ? 'Keine Patches gefunden mit diesen Filtern' 
-                : 'Keine Patches im Dataset vorhanden'}
+                ? 'No patches found with selected filters.' 
+                : 'Dataset does not contain any patches'}
             </p>
           </div>
         ) : viewMode === 'grid' ? (
@@ -512,11 +512,11 @@ export default function DatasetPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-slate-400 border-b border-slate-700">
-                  <th className="pb-3 pl-4">Vorschau</th>
-                  <th className="pb-3">Dateiname</th>
+                  <th className="pb-3 pl-4">Preview</th>
+                  <th className="pb-3">Filename</th>
                   <th className="pb-3">Status</th>
-                  <th className="pb-3">Annotationen</th>
-                  <th className="pb-3 pr-4 text-right">Aktion</th>
+                  <th className="pb-3">Labels</th>
+                  <th className="pb-3 pr-4 text-right">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -540,16 +540,16 @@ export default function DatasetPage() {
                       <td className="py-3">
                         {patch.has_annotation ? (
                           <span className="inline-flex items-center gap-1 text-green-400">
-                            <CheckCircle size={14} /> Gelabelt
+                            <CheckCircle size={14} /> Labeled
                           </span>
                         ) : (
                           <span className="text-slate-500">Ohne Label</span>
                         )}
                       </td>
-                      <td className="py-3 text-slate-400">{patch.annotation_count || 0} Boxen</td>
+                      <td className="py-3 text-slate-400">{patch.annotation_count || 0} Boxes</td>
                       <td className="py-3 pr-4 text-right">
                         <Button variant="secondary" onClick={() => handlePatchClick(index)} className="text-xs">
-                          Bearbeiten
+                          Edit
                         </Button>
                       </td>
                     </tr>
@@ -570,11 +570,11 @@ export default function DatasetPage() {
               className="flex items-center gap-2"
             >
               <ChevronLeft size={18} />
-              Zurück
+              Previous
             </Button>
             
             <span className="text-slate-400">
-              Seite {currentPage + 1} von {totalPages} ({totalPatches} Patches)
+              Page {currentPage + 1} of {totalPages} ({totalPatches} Patches)
             </span>
             
             <Button
@@ -583,7 +583,7 @@ export default function DatasetPage() {
               disabled={currentPage >= totalPages - 1}
               className="flex items-center gap-2"
             >
-              Weiter
+              Next
               <ChevronRight size={18} />
             </Button>
           </div>

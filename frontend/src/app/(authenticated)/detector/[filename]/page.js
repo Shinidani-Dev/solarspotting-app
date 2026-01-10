@@ -128,7 +128,7 @@ export default function DetectorImagePage() {
       const url = URL.createObjectURL(response.data);
       setPreviewUrl(url);
     } catch (err) {
-      setError(`Fehler beim Laden: ${err.message}`);
+      setError(`Error while loading image: ${err.message}`);
     } finally {
       setIsLoadingImage(false);
     }
@@ -173,15 +173,15 @@ export default function DetectorImagePage() {
 
   const handleSaveTransform = async () => {
     if (!isFlipped && !isFlopped) {
-      setError("Keine Transformation ausgewählt");
+      setError("No transformation selected.");
       return;
     }
 
     const confirmSave = window.confirm(
-      `Bild wirklich transformieren?\n\n` +
-      `${isFlipped ? '✓ Vertikal spiegeln (Flip)\n' : ''}` +
-      `${isFlopped ? '✓ Horizontal spiegeln (Flop)\n' : ''}\n` +
-      `ACHTUNG: Das Original wird überschrieben!`
+      `Do you really want to transform the image?\n\n` +
+      `${isFlipped ? 'Mirror vertically (Flip)\n' : ''}` +
+      `${isFlopped ? 'Mirror horizontally (Flop)\n' : ''}\n` +
+      `ATTENTION: The Original image will be owerwritten.`
     );
     
     if (!confirmSave) return;
@@ -191,7 +191,7 @@ export default function DetectorImagePage() {
 
     try {
       await detectorService.transformImage(filename, isFlipped, isFlopped);
-      setSuccessMessage('Bild erfolgreich transformiert!');
+      setSuccessMessage('Image successfully transformed!');
       
       // Reset transform state and reload image
       setIsFlipped(false);
@@ -213,7 +213,7 @@ export default function DetectorImagePage() {
       setProcessedData(null);
       
     } catch (err) {
-      setError(`Transformation fehlgeschlagen: ${err.message}`);
+      setError(`Transformation failed: ${err.message}`);
     } finally {
       setIsSavingTransform(false);
     }
@@ -227,13 +227,13 @@ export default function DetectorImagePage() {
   // ========================================
 
   const handleDeleteImage = async () => {
-    const confirmDelete = window.confirm(`Bild "${filename}" wirklich löschen?`);
+    const confirmDelete = window.confirm(`Do you really want to delete image "${filename}"?`);
     if (!confirmDelete) return;
 
     setIsDeleting(true);
     try {
       await detectorService.deleteRawImage(filename);
-      setSuccessMessage(`"${filename}" gelöscht`);
+      setSuccessMessage(`"${filename}" deleted`);
       
       // Navigate to next or previous or back to list
       if (neighbors.next) {
@@ -244,7 +244,7 @@ export default function DetectorImagePage() {
         router.push('/detector');
       }
     } catch (err) {
-      setError(`Fehler beim Löschen: ${err.message}`);
+      setError(`Error while deleting: ${err.message}`);
     } finally {
       setIsDeleting(false);
     }
@@ -258,9 +258,9 @@ export default function DetectorImagePage() {
     // Warn if there are unsaved transforms
     if (hasTransformPending) {
       const confirmProcess = window.confirm(
-        'Es gibt ungespeicherte Transformationen.\n' +
-        'Möchtest du trotzdem fortfahren?\n\n' +
-        'Die Patches werden vom ORIGINAL-Bild erstellt.'
+        'There are unsaved transformations.\n' +
+        'Proceed anyways?\n\n' +
+        'The patches will be generated based on the original image.'
       );
       if (!confirmProcess) return;
     }
@@ -286,9 +286,9 @@ export default function DetectorImagePage() {
       }
       setLabeledPatches(labeled);
       
-      setSuccessMessage(`${result.total_patches} Patches generiert!`);
+      setSuccessMessage(`${result.total_patches} Patches generated!`);
     } catch (err) {
-      setError(`Verarbeitung fehlgeschlagen: ${err.message}`);
+      setError(`Image processing failed: ${err.message}`);
     } finally {
       setIsProcessing(false);
     }
@@ -366,12 +366,12 @@ export default function DetectorImagePage() {
           <div className="flex items-center gap-4">
             <Button variant="secondary" onClick={goBack} className="flex items-center gap-2">
               <ArrowLeft size={18} />
-              Zurück
+              Back
             </Button>
             <div>
               <h1 className="text-2xl font-bold text-amber-400">{filename}</h1>
               <p className="text-slate-400 text-sm">
-                Bild {neighbors.current_index + 1} von {neighbors.total}
+                Image {neighbors.current_index + 1} of {neighbors.total}
               </p>
             </div>
           </div>
@@ -385,7 +385,7 @@ export default function DetectorImagePage() {
               className="flex items-center gap-2"
             >
               <ChevronLeft size={18} />
-              Vorheriges
+              Previous
             </Button>
             <Button 
               variant="secondary" 
@@ -393,7 +393,7 @@ export default function DetectorImagePage() {
               disabled={!neighbors.next}
               className="flex items-center gap-2"
             >
-              Nächstes
+              Next
               <ChevronRight size={18} />
             </Button>
           </div>
@@ -418,7 +418,7 @@ export default function DetectorImagePage() {
           {isLoadingImage ? (
             <div className="h-96 flex items-center justify-center">
               <Loader2 className="animate-spin text-amber-400" size={40} />
-              <span className="ml-3 text-slate-300">Lade Bild...</span>
+              <span className="ml-3 text-slate-300">Loading image...</span>
             </div>
           ) : previewUrl ? (
             <div className="relative w-full max-w-3xl mx-auto">
@@ -474,7 +474,7 @@ export default function DetectorImagePage() {
             <div className="h-64 flex items-center justify-center bg-slate-800 rounded-lg border border-slate-700">
               <div className="text-center">
                 <ImageIcon size={48} className="mx-auto text-slate-600 mb-2" />
-                <p className="text-slate-500">Bild konnte nicht geladen werden</p>
+                <p className="text-slate-500">Image could not be loaded</p>
               </div>
             </div>
           )}
@@ -485,13 +485,13 @@ export default function DetectorImagePage() {
             {/* Row 1: Flip/Flop Controls */}
             {canEdit && (
               <div className="flex flex-wrap gap-3 p-3 bg-slate-800/50 rounded-lg border border-slate-700">
-                <span className="text-slate-400 text-sm self-center mr-2">Orientierung:</span>
+                <span className="text-slate-400 text-sm self-center mr-2">Orientation:</span>
                 
                 <Button
                   variant={isFlipped ? "primary" : "secondary"}
                   onClick={handleFlip}
                   className="flex items-center gap-2"
-                  title="Vertikal spiegeln (Nord/Süd tauschen)"
+                  title="Mirror vertically (swap North/South)"
                 >
                   <FlipVertical size={18} />
                   Flip {isFlipped && '✓'}
@@ -501,7 +501,7 @@ export default function DetectorImagePage() {
                   variant={isFlopped ? "primary" : "secondary"}
                   onClick={handleFlop}
                   className="flex items-center gap-2"
-                  title="Horizontal spiegeln (Ost/West tauschen)"
+                  title="Mirror horizontally (swap East/West)"
                 >
                   <FlipHorizontal size={18} />
                   Flop {isFlopped && '✓'}
@@ -513,7 +513,7 @@ export default function DetectorImagePage() {
                       variant="secondary"
                       onClick={handleResetTransform}
                       className="flex items-center gap-2"
-                      title="Transformation zurücksetzen"
+                      title="Reset transformations"
                     >
                       <RotateCcw size={18} />
                       Reset
@@ -524,14 +524,14 @@ export default function DetectorImagePage() {
                       onClick={handleSaveTransform}
                       disabled={isSavingTransform}
                       className="flex items-center gap-2 bg-green-600 hover:bg-green-500"
-                      title="Transformation speichern (überschreibt Original)"
+                      title="Save transformation (overwrites original)"
                     >
                       {isSavingTransform ? (
                         <Loader2 size={18} className="animate-spin" />
                       ) : (
                         <Save size={18} />
                       )}
-                      {isSavingTransform ? 'Speichere...' : 'Speichern'}
+                      {isSavingTransform ? 'Saving...' : 'Save'}
                     </Button>
                   </>
                 )}
@@ -547,7 +547,7 @@ export default function DetectorImagePage() {
                 className="flex items-center gap-2"
               >
                 {isProcessing ? <Loader2 size={18} className="animate-spin" /> : <Play size={18} />}
-                {isProcessing ? 'Verarbeite...' : 'Process Image'}
+                {isProcessing ? 'Processing...' : 'Process image'}
               </Button>
 
               <Button
@@ -557,7 +557,7 @@ export default function DetectorImagePage() {
                 className="flex items-center gap-2"
               >
                 {showGlobalGrid ? <GridOffIcon size={18} /> : <GridIcon size={18} />}
-                {showGlobalGrid ? 'Grid aus' : 'Grid ein'}
+                {showGlobalGrid ? 'Hide grid' : 'Display grid'}
               </Button>
 
               {canEdit && (
@@ -568,7 +568,7 @@ export default function DetectorImagePage() {
                   className="flex items-center gap-2 ml-auto"
                 >
                   {isDeleting ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
-                  Löschen
+                  Delete
                 </Button>
               )}
             </div>
@@ -581,7 +581,7 @@ export default function DetectorImagePage() {
             <h2 className="text-lg font-semibold text-slate-200 mb-4">
               Patches ({processedData.patches.length})
               <span className="text-sm font-normal text-slate-400 ml-2">
-                - {labeledPatches.size} gelabelt
+                - {labeledPatches.size} labeled
               </span>
             </h2>
             

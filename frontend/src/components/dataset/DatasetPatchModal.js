@@ -96,7 +96,7 @@ export default function DatasetPatchModal({
       <div className="fixed inset-0 bg-black/70 z-50 flex justify-center items-center">
         <div className="bg-slate-900 rounded-xl p-10 text-center">
           <Loader2 className="animate-spin text-amber-400 mx-auto mb-4" size={40} />
-          <p className="text-slate-300">Lade Patch-Bild...</p>
+          <p className="text-slate-300">Loading Patch...</p>
         </div>
       </div>
     );
@@ -117,7 +117,7 @@ export default function DatasetPatchModal({
   // Save annotation
   const handleSave = async () => {
     if (boxes.length === 0) {
-      const confirmSave = window.confirm("Keine Annotationen vorhanden. Trotzdem als 'leer' speichern?");
+      const confirmSave = window.confirm("No annotations found. Save as 'empty'?");
       if (!confirmSave) return;
     }
 
@@ -150,7 +150,7 @@ export default function DatasetPatchModal({
       if (onSaved) onSaved(patch.filename);
     } catch (err) {
       console.error("Save error:", err);
-      setError("Fehler beim Speichern.");
+      setError("Error while saving.");
     } finally {
       setIsSaving(false);
     }
@@ -158,7 +158,7 @@ export default function DatasetPatchModal({
 
   // Delete annotation and patch
   const handleDelete = async () => {
-    const confirmDelete = window.confirm("Patch und Annotation wirklich löschen?");
+    const confirmDelete = window.confirm("Do you really want to delete the patch and its annotations?");
     if (!confirmDelete) return;
 
     try {
@@ -166,7 +166,7 @@ export default function DatasetPatchModal({
       if (onSaved) onSaved(patch.filename, true);
     } catch (err) {
       console.error("Delete error:", err);
-      setError("Fehler beim Löschen.");
+      setError("Error while deleting.");
     }
   };
 
@@ -192,7 +192,7 @@ export default function DatasetPatchModal({
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold text-amber-400">
-                Patch bearbeiten
+                Edit patch
               </h2>
               <p className="text-slate-400 text-sm mt-1 truncate max-w-md">
                 {patch.filename}
@@ -207,7 +207,7 @@ export default function DatasetPatchModal({
                   onClick={handlePrev}
                   disabled={!canGoPrev}
                   className="p-2"
-                  title="Vorheriger (←)"
+                  title="Previous (←)"
                 >
                   <ChevronLeft size={20} />
                 </Button>
@@ -219,7 +219,7 @@ export default function DatasetPatchModal({
                   onClick={handleNext}
                   disabled={!canGoNext}
                   className="p-2"
-                  title="Nächster (→)"
+                  title="Next (→)"
                 >
                   <ChevronRight size={20} />
                 </Button>
@@ -229,7 +229,7 @@ export default function DatasetPatchModal({
           
           {patch.has_annotation && (
             <span className="inline-block mt-2 px-3 py-1 bg-green-500/20 text-green-400 text-xs rounded-full">
-              {patch.annotation_count || 0} Annotationen vorhanden
+              {patch.annotation_count || 0} Labels
             </span>
           )}
         </div>
@@ -248,7 +248,7 @@ export default function DatasetPatchModal({
             ) : (
               <Save size={18} />
             )}
-            {isSaving ? "Speichern..." : "Speichern"}
+            {isSaving ? "Saving..." : "Save"}
           </Button>
 
           {/* Delete Button */}
@@ -257,7 +257,7 @@ export default function DatasetPatchModal({
             onClick={handleDelete}
             className="flex items-center gap-2"
           >
-            <Trash2 size={18} /> Löschen
+            <Trash2 size={18} /> Delete
           </Button>
         </div>
 
@@ -270,13 +270,13 @@ export default function DatasetPatchModal({
 
         {/* Class Selection */}
         <div className="mb-4 flex items-center gap-4">
-          <label className="text-slate-300 font-medium">Klasse zum Zeichnen:</label>
+          <label className="text-slate-300 font-medium">Class to draw:</label>
           <select
             className="form-input w-48"
             value={selectedClass}
             onChange={(e) => setSelectedClass(e.target.value)}
           >
-            <option value="">-- Auswählen --</option>
+            <option value="">-- Select --</option>
             {classes.map((cls) => (
               <option key={cls.name} value={cls.name}>
                 {cls.name}
@@ -290,7 +290,7 @@ export default function DatasetPatchModal({
             />
           )}
           <span className="text-slate-500 text-sm">
-            (Pfeiltasten für Navigation)
+            (Navigate with arrow keys)
           </span>
         </div>
 
@@ -311,7 +311,7 @@ export default function DatasetPatchModal({
         {boxes.length > 0 && (
           <div className="mt-4">
             <h3 className="text-lg font-semibold text-slate-300 mb-2">
-              Annotationen ({boxes.length})
+              Labels ({boxes.length})
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
               {boxes.map((box, idx) => (
@@ -345,7 +345,7 @@ export default function DatasetPatchModal({
 
         {boxes.length === 0 && (
           <div className="text-center py-8 text-slate-500">
-            Keine Annotationen vorhanden. Zeichnen Sie Bounding Boxes ein.
+            No annotations. Draw some boxes.
           </div>
         )}
       </div>
