@@ -17,7 +17,7 @@ export default function QueryProviders({ children }) {
   return (
     <QueryClientProvider client={queryClient}>
       {children}
-      {mounted && process.env.NODE_ENV === 'development' && <ReactQueryDevtools />}
+      {mounted && process.env.NODE_ENV === 'development' && <ReactQueryDevtools buttonPosition='off' />}
     </QueryClientProvider>
   )
 }

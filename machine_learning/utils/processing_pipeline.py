@@ -379,8 +379,8 @@ class ProcessingPipeline:
             patch_filename = f"{date_string}_patch_px{px}_py{py}.jpg"
 
             patch_results.append({
-                "original_image_file": img_path.name,  # <---- FIX 1: store parent image
-                "patch_file": patch_filename,  # <---- FIX 2: REAL patch filename
+                "original_image_file": img_path.name,
+                "patch_file": patch_filename,
                 "px": int(px),
                 "py": int(py),
                 "datetime": date_string,

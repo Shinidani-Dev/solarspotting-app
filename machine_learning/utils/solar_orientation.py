@@ -96,7 +96,7 @@ class SolarOrientation:
         Epsilon = (84381.448 - 46.8150 * T - 0.00059 * T ** 2 + 0.001813 * T ** 3) / 3600.0
         Epsilon += Delta_epsilon
 
-        # Scheinbare Länge
+        # Scheinbare Länge setzt sich aus der wahren Länge plus der Korrektur zusammen
         SL = WL + Delta_psi
 
         return SL % 360.0, R, Epsilon

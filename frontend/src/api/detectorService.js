@@ -152,7 +152,13 @@ const detectorService = {
   // ========================================
 
   async startTraining(config = {}) {
-    const res = await api.post("/labeling/train", config);
+    const payload = {
+      epochs: config.epochs,
+      batch_size: config.batchSize,
+      model_arch: config.modelArch,
+    };
+    console.log("PAYLOAD: ", payload);
+    const res = await api.post("/labeling/train", payload);
     return res.data;
   },
 

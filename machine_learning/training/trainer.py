@@ -34,7 +34,35 @@ class TrainingPipeline:
             project=str((config.dataset_path.parent).resolve()),
             name=config.run_name,
             pretrained=True,
-            amp=False
+            amp=False,
+
+            # Master-Schalter
+            augment=config.augment,
+
+            # Layout / Mixing
+            # mosaic=config.mosaic,
+            # mixup=config.mixup,
+            # copy_paste=config.copy_paste,
+
+            # Geometrie
+            # degrees=config.degrees,
+            # translate=config.translate,
+            # scale=config.scale,
+            # shear=config.shear,
+            # perspective=config.perspective,
+
+            # Farbe (HSV)
+            # hsv_h=config.hsv_h,
+            # hsv_s=config.hsv_s,
+            # hsv_v=config.hsv_v,
+
+            # Flip
+            # fliplr=config.fliplr,
+            # flipud=config.flipud,
+
+            # Regularisierung
+            # erasing=config.erasing,
+            # auto_augment=config.auto_augment
         )
 
         # 5) Best model path

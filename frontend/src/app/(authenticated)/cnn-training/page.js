@@ -183,7 +183,9 @@ export default function MLTrainingPage() {
         started_at: new Date().toISOString(),
         current_epoch: 0,
         total_epochs: trainingConfig.epochs,
-        progress_percent: 0
+        progress_percent: 0,
+        batch_size: trainingConfig.batchSize,
+        model_arch: trainingConfig.modelArch
       });
       setSuccessMessage("Training started!");
       startTrainingPolling();

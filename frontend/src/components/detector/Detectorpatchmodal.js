@@ -240,7 +240,7 @@ export default function DetectorPatchModal({
                 ) : (
                   <Sparkles size={18} />
                 )}
-                {isDetecting ? "Erkennung läuft..." : "Auto-Detect"}
+                {isDetecting ? "Detecting..." : "Auto-Detect"}
               </Button>
 
               {/* Grid Toggle - alle User */}

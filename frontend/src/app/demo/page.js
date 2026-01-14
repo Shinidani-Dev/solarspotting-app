@@ -506,7 +506,7 @@ export default function DemoPage() {
                 className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-400 disabled:bg-slate-600 text-slate-900 font-medium rounded-lg transition-colors"
               >
                 {isDetecting ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
-                {isDetecting ? 'Erkennung läuft...' : 'Auto-Detect'}
+                {isDetecting ? 'Detecting...' : 'Auto-Detect'}
               </button>
               {!modelInfo?.model_available && (
                 <p className="text-yellow-400 text-sm mt-2">Kein Modell verfügbar</p>

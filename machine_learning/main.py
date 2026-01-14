@@ -21,6 +21,7 @@ from utils.dataset_info import DatasetInfo
 from machine_learning.training.config import TrainingConfig
 from machine_learning.training.trainer import TrainingPipeline
 from machine_learning.settings import DATASET_OUTPUT_DIR, PROJECT_ROOT, ML_MODELS_DIR
+from machine_learning.utils.solar_orientation import SolarOrientation
 
 ML_FOLDER = Path(__file__).resolve().parent
 
@@ -33,11 +34,12 @@ img_list = ["storage/20140209_101500_SDO_2048_00.jpg",
             "machine_learning/data/img/normal/2k/20250407_080000_SDO_2048_00.jpg",
             "machine_learning/data/img/normal/4k/20140607_073000_Ic_flat_4k.jpg"]
 
-TESTING = True
+TESTING = False
 TESTING_SOLAR = False
-TESTING_FOR_LOOP = True
+TESTING_FOR_LOOP = False
 TESTING_DATASET_INFO = False
 Training = False
+TESTING_CALC = True
 
 CENTER_X = 117
 CENTER_Y = 1210
@@ -45,6 +47,10 @@ CENTER_Y = 1210
 
 def main():
     print(ML_MODELS_DIR.resolve())
+    if TESTING_CALC:
+        dt = datetime(2026, 1, 1, 15, 15, 30)
+        jde = SolarOrientation.datetime_to_jde(dt, 66)
+        print(jde)
     if Training:
         print(DATASET_OUTPUT_DIR.resolve())
         cfg = TrainingConfig(dataset_path=DATASET_OUTPUT_DIR, device="cuda:0")

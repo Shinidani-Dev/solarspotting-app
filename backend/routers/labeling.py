@@ -10,7 +10,7 @@ from typing import List, Optional
 
 import cv2
 import numpy as np
-from fastapi import APIRouter, HTTPException, status, Form, UploadFile, File
+from fastapi import APIRouter, HTTPException, status, Form, UploadFile, File, Body
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
@@ -1377,11 +1377,39 @@ def _run_training(config: TrainingConfig, job_id: str):
             epochs=config.epochs,
             batch=config.batch_size,
             imgsz=config.img_size,
-            device=config.device,  # auto / cuda
+            device=config.device,
             project=str(config.dataset_path.parent),
             name=f"train_{job_id}",
             pretrained=True,
-            verbose=True
+            verbose=True,
+
+            # ===== AUGMENTATIONEN AUS CONFIG =====
+            augment=config.augment,
+
+            # Layout / Mixing
+            # mosaic=config.mosaic,
+            # mixup=config.mixup,
+            # copy_paste=config.copy_paste,
+
+            # Geometrie
+            # degrees=config.degrees,
+            # translate=config.translate,
+            # scale=config.scale,
+            # shear=config.shear,
+            # perspective=config.perspective,
+
+            # Farbe
+            # hsv_h=config.hsv_h,
+            # hsv_s=config.hsv_s,
+            # hsv_v=config.hsv_v,
+
+            # Flip
+            # fliplr=config.fliplr,
+            # flipud=config.flipud,
+
+            # Regularisierung
+            # erasing=config.erasing,
+            # auto_augment=config.auto_augment
         )
 
         # --------------------------------------------------
@@ -1436,8 +1464,9 @@ def _run_training(config: TrainingConfig, job_id: str):
 
 @router.post("/train", status_code=202)
 async def start_training(
-        user: CURRENT_ADMIN_USER,  # Nur Admin
-        request: TrainRequest = None
+        request: TrainRequest,
+        user: CURRENT_ADMIN_USER
+
 ):
     """
     Starts model training asynchronously (YOLO format).
@@ -1527,6 +1556,8 @@ async def start_training(
             return "cuda:0" if torch.cuda.is_available() else "cpu"
         except Exception:
             return "cpu"
+
+    print(request.model_arch)
 
     config = TrainingConfig(
         dataset_path=OUTPUT_DIR,
