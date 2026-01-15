@@ -15,11 +15,13 @@ Wichtig:
 """
 
 import base64
+import io
 from pathlib import Path
 from typing import Optional
 
 import cv2
 import numpy as np
+from PIL import Image
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -280,14 +282,18 @@ async def detect_on_demo_patch(request: DemoDetectRequest):
                 detail="No trained model available for demo."
             )
 
-        # Decode base64 image
+        # Decode base64 image als PIL Image (umgeht numpy/torch Problem)
         try:
             img_bytes = base64.b64decode(request.patch_image_base64)
-            np_arr = np.frombuffer(img_bytes, dtype=np.uint8)
-            img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+            img = Image.open(io.BytesIO(img_bytes))
 
             if img is None:
                 raise ValueError("Failed to decode image")
+
+            # Ensure RGB mode
+            if img.mode != 'RGB':
+                img = img.convert('RGB')
+
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -301,7 +307,7 @@ async def detect_on_demo_patch(request: DemoDetectRequest):
         # Get class names from model
         class_names = model.names if hasattr(model, 'names') else {}
 
-        # Run prediction
+        # Run prediction with PIL Image
         results = model.predict(
             img,
             conf=request.confidence_threshold,
@@ -315,7 +321,7 @@ async def detect_on_demo_patch(request: DemoDetectRequest):
 
             for i in range(len(boxes)):
                 # Get box coordinates (xyxy format)
-                xyxy = boxes.xyxy[i].cpu().numpy()
+                xyxy = boxes.xyxy[i].cpu().tolist()
                 x1, y1, x2, y2 = xyxy
 
                 # Convert to [x, y, width, height] format
@@ -325,8 +331,8 @@ async def detect_on_demo_patch(request: DemoDetectRequest):
                 h = float(y2 - y1)
 
                 # Get class and confidence
-                cls_id = int(boxes.cls[i].cpu().numpy())
-                conf = float(boxes.conf[i].cpu().numpy())
+                cls_id = int(boxes.cls[i].cpu().tolist())
+                conf = float(boxes.conf[i].cpu().tolist())
 
                 # Map class ID to class name
                 class_name = class_names.get(cls_id, f"Unknown_{cls_id}")
