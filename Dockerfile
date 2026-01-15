@@ -22,11 +22,8 @@ RUN pip install --no-cache-dir \
     torchvision==0.17.2+cpu \
     --index-url https://download.pytorch.org/whl/cpu
 
-# Numpy explizit installieren (für ultralytics Kompatibilität)
-RUN pip install --no-cache-dir numpy==1.26.4
-
-# Ultralytics (für YOLO inference) - neuere Version für numpy Kompatibilität
-RUN pip install --no-cache-dir ultralytics>=8.1.0
+# Numpy und Ultralytics (exakte Versionen wie lokal)
+RUN pip install --no-cache-dir numpy==2.2.6 ultralytics==8.3.233
 
 # ML Modul OHNE [train] extras - nur Basis-Dependencies
 COPY machine_learning/ ./machine_learning/
