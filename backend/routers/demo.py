@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Optional
 
 import cv2
+import numpy as np
 from PIL import Image
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import FileResponse
@@ -133,7 +134,7 @@ async def process_demo_image(filename: str):
         raise HTTPException(500, f"Error processing demo image: {str(e)}")
 
 # ===================================================================
-# DETECT ON DEMO PATCH - OHNE NUMPY (via temp file)
+# DETECT ON DEMO PATCH
 # ===================================================================
 @router.post("/detect", status_code=200)
 async def detect_on_demo_patch(request: DemoDetectRequest):
@@ -142,42 +143,25 @@ async def detect_on_demo_patch(request: DemoDetectRequest):
         if not model_path.exists():
             raise HTTPException(404, "No trained model available")
 
-        # --------------------------------------------------
-        # Decode Base64 → PIL Image
-        # --------------------------------------------------
+        # Decode Base64 -> numpy array
         img_bytes = base64.b64decode(request.patch_image_base64)
-        pil_img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+        nparr = np.frombuffer(img_bytes, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
-        # --------------------------------------------------
-        # Speichere als temporäre Datei und lade mit YOLO
-        # (umgeht numpy komplett - YOLO lädt intern selbst)
-        # --------------------------------------------------
-        import tempfile
-        import os
+        if img is None:
+            raise HTTPException(400, "Invalid image data")
 
-        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
-            pil_img.save(tmp.name, format="JPEG")
-            tmp_path = tmp.name
+        # Load YOLO and predict
+        from ultralytics import YOLO
+        model = YOLO(str(model_path))
 
-        try:
-            # --------------------------------------------------
-            # YOLO mit Dateipfad (YOLO handled alles intern)
-            # --------------------------------------------------
-            from ultralytics import YOLO
-            model = YOLO(str(model_path))
+        results = model.predict(
+            img,
+            conf=request.confidence_threshold,
+            verbose=False
+        )
 
-            results = model.predict(
-                source=tmp_path,
-                conf=request.confidence_threshold,
-                verbose=False
-            )
-        finally:
-            # Cleanup temp file
-            os.unlink(tmp_path)
-
-        # --------------------------------------------------
-        # Parse detections mit .tolist() statt .numpy()
-        # --------------------------------------------------
+        # Parse results
         detections = []
         names = model.names
 
@@ -185,21 +169,16 @@ async def detect_on_demo_patch(request: DemoDetectRequest):
             boxes = results[0].boxes
 
             for i in range(len(boxes)):
-                xyxy = boxes.xyxy[i].cpu().tolist()
+                xyxy = boxes.xyxy[i].cpu().numpy()
                 x1, y1, x2, y2 = xyxy
 
-                conf = boxes.conf[i].cpu().tolist()
-                cls_id = int(boxes.cls[i].cpu().tolist())
+                conf = float(boxes.conf[i].cpu().numpy())
+                cls_id = int(boxes.cls[i].cpu().numpy())
 
                 detections.append({
-                    "bbox": [
-                        float(x1),
-                        float(y1),
-                        float(x2 - x1),
-                        float(y2 - y1),
-                    ],
+                    "bbox": [float(x1), float(y1), float(x2 - x1), float(y2 - y1)],
                     "class": names[cls_id],
-                    "confidence": round(float(conf), 4),
+                    "confidence": round(conf, 4),
                 })
 
         return {
@@ -213,10 +192,7 @@ async def detect_on_demo_patch(request: DemoDetectRequest):
     except Exception as e:
         import traceback
         print(f"[DEMO] Detection error: {traceback.format_exc()}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Demo detection error: {str(e)}"
-        )
+        raise HTTPException(500, f"Demo detection error: {str(e)}")
 
 
 # ===================================================================
