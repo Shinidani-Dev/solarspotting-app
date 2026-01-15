@@ -231,7 +231,7 @@ export default function DemoPage() {
             </div>
             <div>
               <h1 className="text-4xl font-bold text-amber-400">SolarSpotting Demo</h1>
-              <p className="text-slate-400 mt-1">Testen Sie unsere KI-gestützte Sonnenfleckenerkennung</p>
+              <p className="text-slate-400 mt-1">Testen Sie die KI-gestützte Sonnenfleckenerkennung</p>
             </div>
           </div>
 

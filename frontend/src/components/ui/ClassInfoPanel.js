@@ -98,7 +98,7 @@ export default function ClassInfoPanel() {
         <div className="sticky top-0 bg-slate-800 border-b border-slate-700 p-4 z-10">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold text-amber-400">
-              McIntosh Klassifikation
+              McIntosh Klassifikation (Z Komponente)
             </h2>
             <button
               onClick={() => setIsOpen(false)}
