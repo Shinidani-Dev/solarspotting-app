@@ -22,8 +22,10 @@ venv/
 *.swp
 
 # Local storage (wird im Container neu erstellt)
-storage/
+storage/*
 !storage/demo/
+!storage/demo/raw/
+!storage/demo/raw/*
 
 # Docs
 *.pdf
