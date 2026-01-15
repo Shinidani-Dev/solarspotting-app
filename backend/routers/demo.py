@@ -154,14 +154,17 @@ async def detect_on_demo_patch(request: DemoDetectRequest):
         img_np = np.array(pil_img, dtype=np.uint8)
         img_np = np.ascontiguousarray(img_np)
 
-        # -------------------------------
-        # YOLO Inference
-        # -------------------------------
+        import torch
         from ultralytics import YOLO
+
+        img_tensor = torch.from_numpy(img_np)
+        img_tensor = img_tensor.permute(2, 0, 1).float() / 255.0
+        img_tensor = img_tensor.unsqueeze(0)
+
         model = YOLO(str(model_path))
 
         results = model.predict(
-            source=img_np,
+            source=img_tensor,
             conf=request.confidence_threshold,
             verbose=False
         )
