@@ -8,6 +8,7 @@
 // API Base URL - mit Fallback
 const getApiBaseUrl = () => {
   if (typeof window !== 'undefined') {
+    console.log("NEXT PB API URL: ", process.env.NEXT_PUBLIC_API_URL);
     return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
   }
   return 'http://localhost:8000/api/v1';
