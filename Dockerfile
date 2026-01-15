@@ -25,8 +25,8 @@ RUN pip install --no-cache-dir \
 # Numpy explizit installieren (für ultralytics Kompatibilität)
 RUN pip install --no-cache-dir numpy==1.26.4
 
-# Ultralytics (für YOLO inference)
-RUN pip install --no-cache-dir ultralytics==8.0.196
+# Ultralytics (für YOLO inference) - neuere Version für numpy Kompatibilität
+RUN pip install --no-cache-dir ultralytics>=8.1.0
 
 # ML Modul OHNE [train] extras - nur Basis-Dependencies
 COPY machine_learning/ ./machine_learning/
