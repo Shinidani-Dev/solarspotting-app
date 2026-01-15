@@ -136,7 +136,6 @@ async def process_demo_image(filename: str):
 # ===================================================================
 # DETECT ON DEMO PATCH  ✅ FIXED
 # ===================================================================
-
 @router.post("/detect", status_code=200)
 async def detect_on_demo_patch(request: DemoDetectRequest):
     try:
@@ -144,48 +143,63 @@ async def detect_on_demo_patch(request: DemoDetectRequest):
         if not model_path.exists():
             raise HTTPException(404, "No trained model available")
 
-        # -------------------------------
-        # 🔥 PIL → NumPy (EXPLIZIT & STABIL)
-        # -------------------------------
+        # --------------------------------------------------
+        # Decode Base64 → PIL
+        # --------------------------------------------------
         img_bytes = base64.b64decode(request.patch_image_base64)
-
         pil_img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
 
+        # --------------------------------------------------
+        # PIL → NumPy → Torch Tensor (EXPLIZIT)
+        # --------------------------------------------------
         img_np = np.array(pil_img, dtype=np.uint8)
         img_np = np.ascontiguousarray(img_np)
 
         import torch
-        from ultralytics import YOLO
-
         img_tensor = torch.from_numpy(img_np)
-        img_tensor = img_tensor.permute(2, 0, 1).float() / 255.0
-        img_tensor = img_tensor.unsqueeze(0)
+        img_tensor = img_tensor.permute(2, 0, 1).float() / 255.0  # HWC → CHW
+        img_tensor = img_tensor.unsqueeze(0)  # (1, 3, H, W)
 
+        # --------------------------------------------------
+        # Load YOLO model (LOW-LEVEL)
+        # --------------------------------------------------
+        from ultralytics import YOLO
         model = YOLO(str(model_path))
+        model.model.eval()
 
-        results = model.predict(
-            source=img_tensor,
-            conf=request.confidence_threshold,
-            verbose=False
-        )
+        # --------------------------------------------------
+        # Direct PyTorch Forward Pass (NO predict())
+        # --------------------------------------------------
+        with torch.no_grad():
+            preds = model.model(img_tensor)[0]
 
-        preds = []
-        if results and results[0].boxes is not None:
-            boxes = results[0].boxes
-            names = model.names
+        # --------------------------------------------------
+        # Parse detections
+        # Format: [x1, y1, x2, y2, conf, cls]
+        # --------------------------------------------------
+        detections = []
+        names = model.names
 
-            for i in range(len(boxes)):
-                x1, y1, x2, y2 = boxes.xyxy[i].cpu().tolist()
-                preds.append({
-                    "bbox": [x1, y1, x2 - x1, y2 - y1],
-                    "class": names[int(boxes.cls[i])],
-                    "confidence": round(float(boxes.conf[i]), 4)
-                })
+        for det in preds.cpu():
+            x1, y1, x2, y2, conf, cls = det.tolist()
+            if conf < request.confidence_threshold:
+                continue
+
+            detections.append({
+                "bbox": [
+                    float(x1),
+                    float(y1),
+                    float(x2 - x1),
+                    float(y2 - y1),
+                ],
+                "class": names[int(cls)],
+                "confidence": round(float(conf), 4),
+            })
 
         return {
-            "predictions": preds,
-            "total_detections": len(preds),
-            "demo_mode": True
+            "predictions": detections,
+            "total_detections": len(detections),
+            "demo_mode": True,
         }
 
     except Exception as e:
@@ -193,6 +207,7 @@ async def detect_on_demo_patch(request: DemoDetectRequest):
             status_code=500,
             detail=f"Demo detection error: {str(e)}"
         )
+
 
 # ===================================================================
 # MODEL INFO
