@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     PORT: int = 8000
 
     # CORS Settings
-    ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000"
+    ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,https://solarspotting-app-stfc.vercel.app"
     cors_origins: List[str] = []
 
     # Database connection
