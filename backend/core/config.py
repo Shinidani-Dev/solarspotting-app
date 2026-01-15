@@ -93,6 +93,8 @@ class Settings(BaseSettings):
 
 # Create settings instance
 settings = Settings()
+print("🚨 ENV ALLOWED_ORIGINS:", settings.ALLOWED_ORIGINS)
+print("🚨 CORS ORIGINS:", settings.cors_origins)
 
 
 # Helper function to get CORS origins
