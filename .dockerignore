@@ -1,0 +1,42 @@
+# Frontend (wird separat auf Vercel deployed)
+frontend/
+node_modules/
+
+# Git
+.git/
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Local storage (wird im Container neu erstellt)
+storage/
+*.pt
+*.onnx
+
+# Docs
+*.pdf
+*.docx
+*.md
+!README.md
+
+# Tests
+tests/
+pytest_cache/
+.coverage
+
+# Environment
+.env
+.env.local
