@@ -32,6 +32,9 @@ RUN pip install --no-cache-dir -e "./machine_learning"
 # Backend Code
 COPY backend/ ./backend/
 
+# PYTHONPATH setzen damit machine_learning als Modul importierbar ist
+ENV PYTHONPATH="/app:${PYTHONPATH}"
+
 # Storage-Verzeichnisse
 RUN mkdir -p /app/storage/models/active \
              /app/storage/datasets/images_raw \
