@@ -3,20 +3,13 @@ from datetime import datetime
 
 import matplotlib
 matplotlib.use("TkAgg")
-import matplotlib.pyplot as plt
-import numpy as np
 
 from pathlib import Path
-from astropy.utils.data import get_pkg_data_filename
-from astropy.io import fits
 
 import cv2
 from utils.image_processor import ImageProcessor
-from utils.solar_data_manager import SolarDataManager
 from utils.processing_pipeline import ProcessingPipeline
 from utils.solar_reprojector import SolarReprojector
-from machine_learning.enums.morpholog_operations import MorphologyOperation
-from utils.solar_grid_generator import SolarGridGenerator
 from utils.dataset_info import DatasetInfo
 from machine_learning.training.config import TrainingConfig
 from machine_learning.training.trainer import TrainingPipeline
@@ -39,7 +32,7 @@ TESTING_SOLAR = False
 TESTING_FOR_LOOP = False
 TESTING_DATASET_INFO = False
 Training = False
-TESTING_CALC = True
+TESTING_CALC = False
 
 CENTER_X = 117
 CENTER_Y = 1210
