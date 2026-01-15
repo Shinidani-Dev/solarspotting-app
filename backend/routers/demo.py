@@ -311,6 +311,8 @@ async def detect_on_demo_patch(request: DemoDetectRequest):
         results = model.predict(
             img,
             conf=request.confidence_threshold,
+            iou=0.5,
+            agnostic_nms=True,
             verbose=False
         )
 
