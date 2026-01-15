@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Optional
 
 import cv2
-import numpy as np
 from PIL import Image
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import FileResponse
@@ -134,7 +133,7 @@ async def process_demo_image(filename: str):
         raise HTTPException(500, f"Error processing demo image: {str(e)}")
 
 # ===================================================================
-# DETECT ON DEMO PATCH  ✅ FIXED
+# DETECT ON DEMO PATCH - OHNE NUMPY (via temp file)
 # ===================================================================
 @router.post("/detect", status_code=200)
 async def detect_on_demo_patch(request: DemoDetectRequest):
@@ -144,57 +143,64 @@ async def detect_on_demo_patch(request: DemoDetectRequest):
             raise HTTPException(404, "No trained model available")
 
         # --------------------------------------------------
-        # Decode Base64 → PIL
+        # Decode Base64 → PIL Image
         # --------------------------------------------------
         img_bytes = base64.b64decode(request.patch_image_base64)
         pil_img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
 
         # --------------------------------------------------
-        # PIL → NumPy → Torch Tensor (EXPLIZIT)
+        # Speichere als temporäre Datei und lade mit YOLO
+        # (umgeht numpy komplett - YOLO lädt intern selbst)
         # --------------------------------------------------
-        img_np = np.array(pil_img, dtype=np.uint8)
-        img_np = np.ascontiguousarray(img_np)
+        import tempfile
+        import os
 
-        import torch
-        img_tensor = torch.from_numpy(img_np)
-        img_tensor = img_tensor.permute(2, 0, 1).float() / 255.0  # HWC → CHW
-        img_tensor = img_tensor.unsqueeze(0)  # (1, 3, H, W)
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+            pil_img.save(tmp.name, format="JPEG")
+            tmp_path = tmp.name
+
+        try:
+            # --------------------------------------------------
+            # YOLO mit Dateipfad (YOLO handled alles intern)
+            # --------------------------------------------------
+            from ultralytics import YOLO
+            model = YOLO(str(model_path))
+
+            results = model.predict(
+                source=tmp_path,
+                conf=request.confidence_threshold,
+                verbose=False
+            )
+        finally:
+            # Cleanup temp file
+            os.unlink(tmp_path)
 
         # --------------------------------------------------
-        # Load YOLO model (LOW-LEVEL)
-        # --------------------------------------------------
-        from ultralytics import YOLO
-        model = YOLO(str(model_path))
-        model.model.eval()
-
-        # --------------------------------------------------
-        # Direct PyTorch Forward Pass (NO predict())
-        # --------------------------------------------------
-        with torch.no_grad():
-            preds = model.model(img_tensor)[0]
-
-        # --------------------------------------------------
-        # Parse detections
-        # Format: [x1, y1, x2, y2, conf, cls]
+        # Parse detections mit .tolist() statt .numpy()
         # --------------------------------------------------
         detections = []
         names = model.names
 
-        for det in preds.cpu():
-            x1, y1, x2, y2, conf, cls = det.tolist()
-            if conf < request.confidence_threshold:
-                continue
+        if len(results) > 0 and results[0].boxes is not None:
+            boxes = results[0].boxes
 
-            detections.append({
-                "bbox": [
-                    float(x1),
-                    float(y1),
-                    float(x2 - x1),
-                    float(y2 - y1),
-                ],
-                "class": names[int(cls)],
-                "confidence": round(float(conf), 4),
-            })
+            for i in range(len(boxes)):
+                xyxy = boxes.xyxy[i].cpu().tolist()
+                x1, y1, x2, y2 = xyxy
+
+                conf = boxes.conf[i].cpu().tolist()
+                cls_id = int(boxes.cls[i].cpu().tolist())
+
+                detections.append({
+                    "bbox": [
+                        float(x1),
+                        float(y1),
+                        float(x2 - x1),
+                        float(y2 - y1),
+                    ],
+                    "class": names[cls_id],
+                    "confidence": round(float(conf), 4),
+                })
 
         return {
             "predictions": detections,
@@ -202,7 +208,11 @@ async def detect_on_demo_patch(request: DemoDetectRequest):
             "demo_mode": True,
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
+        import traceback
+        print(f"[DEMO] Detection error: {traceback.format_exc()}")
         raise HTTPException(
             status_code=500,
             detail=f"Demo detection error: {str(e)}"
