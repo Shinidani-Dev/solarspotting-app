@@ -3,7 +3,6 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import re
-from astropy.io import fits
 from pathlib import Path
 from datetime import datetime
 from skimage.filters import threshold_multiotsu
@@ -33,26 +32,6 @@ class ImageProcessor:
         if image is None:
             raise ValueError(f"Bild konnte nicht geladen werden {path}")
         return image
-
-    @staticmethod
-    def read_fits_image(path: str) -> np.ndarray:
-        """
-        Liest ein rohes FITS-Bild (Flexible Image Transport System) mithilfe von astropy ein
-        und gibt es als Numpy-Array zurück.
-        Args:
-            path: Pfad der Fits Bilddatei
-
-        Returns: Bilddatei als Numpy-Array (dtype=float32)
-
-        """
-        path = Path(path)
-        if not path.exists():
-            raise FileNotFoundError(f"Datei nicht gefunden {path}")
-        with fits.open(path) as hdul:
-            data = hdul[0].data
-            if data is None:
-                raise ValueError(f"FITS-Datei enthält keine Bilddaten {path}")
-            return np.array(data, dtype=np.float32)
 
     @staticmethod
     def print_img_stats(image: np.ndarray) -> None:
