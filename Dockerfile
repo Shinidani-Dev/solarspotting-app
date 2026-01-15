@@ -47,8 +47,8 @@ COPY storage/demo/raw/ /app/storage/demo/raw/
 # Trainiertes Modell ist bereits in machine_learning/models/active/best.pt
 # (wird mit COPY machine_learning/ oben mitkopiert)
 
-WORKDIR /app/backend
+WORKDIR /app
 
 EXPOSE 8000
 
-CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
+CMD uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}
