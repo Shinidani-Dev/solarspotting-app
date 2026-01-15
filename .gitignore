@@ -42,11 +42,14 @@ Thumbs.db
 
 # Ignore the storage folder and all ML folder
 storage
+!storage/demo/
+!storage/demo/raw/
 runs
 weights
 
 # Ignore the pt (MLModel) files
 *.pt
+!machine_learning/models/active/best.pt
 
 # Ignore data folder as it is used for testing purposes
 data/
