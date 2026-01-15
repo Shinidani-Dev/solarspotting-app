@@ -22,6 +22,9 @@ RUN pip install --no-cache-dir \
     torchvision==0.17.2+cpu \
     --index-url https://download.pytorch.org/whl/cpu
 
+# Numpy explizit installieren (für ultralytics Kompatibilität)
+RUN pip install --no-cache-dir numpy==1.26.4
+
 # Ultralytics (für YOLO inference)
 RUN pip install --no-cache-dir ultralytics==8.0.196
 
@@ -52,4 +55,3 @@ WORKDIR /app
 EXPOSE 8000
 
 CMD uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-8000}
-
