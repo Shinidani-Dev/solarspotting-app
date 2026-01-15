@@ -22,8 +22,8 @@ RUN pip install --no-cache-dir \
     torchvision==0.17.2+cpu \
     --index-url https://download.pytorch.org/whl/cpu
 
-# Numpy, Scipy (kompatible Versionen) und Ultralytics
-RUN pip install --no-cache-dir "numpy>=1.26.0,<2.0.0" "scipy>=1.11.0,<1.14.0" ultralytics==8.3.233
+# Numpy 2.x, Scipy (kompatibel) und Ultralytics
+RUN pip install --no-cache-dir numpy==2.0.2 scipy==1.14.1 ultralytics==8.3.233
 
 # ML Modul OHNE [train] extras - nur Basis-Dependencies
 COPY machine_learning/ ./machine_learning/
