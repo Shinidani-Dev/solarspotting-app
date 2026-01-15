@@ -22,15 +22,16 @@ RUN pip install --no-cache-dir \
     torchvision==0.17.2+cpu \
     --index-url https://download.pytorch.org/whl/cpu
 
-# Numpy, Scipy, Ultralytics - exakt wie lokal
-RUN pip install --no-cache-dir numpy==2.2.6 scipy==1.16.3 ultralytics==8.3.233
-
 # ML Modul OHNE [train] extras - nur Basis-Dependencies
 COPY machine_learning/ ./machine_learning/
 RUN pip install --no-cache-dir -e "./machine_learning"
 
 # Backend Code
 COPY backend/ ./backend/
+
+# WICHTIG: Numpy, Scipy, Ultralytics AM ENDE installieren (nach ML Modul)
+# --force-reinstall stellt sicher dass die richtigen Versionen verwendet werden
+RUN pip install --no-cache-dir --force-reinstall numpy==2.2.6 scipy==1.16.3 ultralytics==8.3.233
 
 # PYTHONPATH setzen damit machine_learning als Modul importierbar ist
 ENV PYTHONPATH="/app:${PYTHONPATH}"
