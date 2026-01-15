@@ -18,11 +18,11 @@ tensorboard==2.15.1
 ultralytics==8.0.196
 
 # Solar physics specialized tools
-astropy==6.1.4
-sunpy==6.0.3
-reproject==0.14.0
-imageio==2.36.0
-albumentations==1.4.18
+#astropy==6.1.4
+#sunpy==6.0.3
+#reproject==0.14.0
+#imageio==2.36.0
+#albumentations==1.4.18
 
 # Visualization tools
 seaborn==0.13.1

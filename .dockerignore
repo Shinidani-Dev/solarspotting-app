@@ -23,8 +23,7 @@ venv/
 
 # Local storage (wird im Container neu erstellt)
 storage/
-*.pt
-*.onnx
+!storage/demo/
 
 # Docs
 *.pdf
