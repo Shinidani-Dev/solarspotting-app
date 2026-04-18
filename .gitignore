@@ -62,6 +62,8 @@ logs/
 
 # Ignore ml models and metrices
 models/
+machine_learning/models
 
 # Ignore Claude
 .claude
+claude.md
