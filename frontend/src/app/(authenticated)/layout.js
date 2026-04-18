@@ -5,17 +5,18 @@ import { useAuth } from '@/hooks/useAuth';
 import { useState, useEffect } from 'react';
 import SidepanelNavItem from '@/components/ui/SidepanelNavItem';
 import { 
-  House, 
-  Sun, 
-  Telescope, 
-  UserRound, 
-  DoorOpen, 
-  SquareStack, 
-  RectangleHorizontal, 
-  ScanSearch, 
-  Images, 
+  House,
+  Sun,
+  Telescope,
+  UserRound,
+  DoorOpen,
+  SquareStack,
+  RectangleHorizontal,
+  ScanSearch,
+  Images,
   Waypoints,
-  Users
+  Users,
+  FlaskConical
 } from 'lucide-react';
 
 export default function AuthenticatedLayout({ children }) {
@@ -44,6 +45,7 @@ export default function AuthenticatedLayout({ children }) {
     { name: 'Profile', href: '/profile', Icon: UserRound },
     { name: 'Processing Pipeline', href: '/classifier', Icon: SquareStack },
     { name: 'Detector', href: '/detector', Icon: ScanSearch },
+    { name: 'Image Processor', href: '/image-processor', Icon: FlaskConical },
   ];
 
   // Items nur für Labeler + Admin
