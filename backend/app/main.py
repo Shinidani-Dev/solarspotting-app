@@ -13,7 +13,8 @@ from backend.routers import (
     files,
     classifier,
     labeling,
-    demo
+    demo,
+    image_processing_router
 )
 from backend.app.middleware import setup_middlewares
 from fastapi.staticfiles import StaticFiles
@@ -36,6 +37,7 @@ app.include_router(files.router, prefix=settings.API_V1_STR)
 app.include_router(classifier.router, prefix=settings.API_V1_STR)
 app.include_router(labeling.router, prefix=settings.API_V1_STR)
 app.include_router(demo.router, prefix=settings.API_V1_STR)
+app.include_router(image_processing_router.router, prefix=settings.API_V1_STR)
 
 
 app.mount("/storage", StaticFiles(directory=settings.STORAGE_PATH), name="storage")
