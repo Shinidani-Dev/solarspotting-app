@@ -7,6 +7,22 @@ import Button from '@/components/ui/buttons/Button';
 import ImageFullscreen from '@/components/ui/images/ImageFullscreen';
 import { applyGrayscale, applyBilateral, applyMultiOtsu, applyBinarized } from '@/api/processingService';
 
+function resizeTo2k(file) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const canvas = document.createElement('canvas');
+      canvas.width  = 2048;
+      canvas.height = 2048;
+      canvas.getContext('2d').drawImage(img, 0, 0, 2048, 2048);
+      canvas.toBlob((blob) => resolve(new File([blob], file.name, { type: file.type })), file.type);
+    };
+    img.src = url;
+  });
+}
+
 // Convert hex (#rrggbb) → "R,G,B" string for the API
 function hexToRgbStr(hex) {
   return [
@@ -26,9 +42,10 @@ export default function ImageProcessorPage() {
   const [error,      setError]      = useState(null);
   const fileInputRef = useRef(null);
 
-  const handleUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  const handleUpload = async (e) => {
+    const raw = e.target.files[0];
+    if (!raw) return;
+    const file = await resizeTo2k(raw);
     setProcessedImages([{ url: URL.createObjectURL(file), label: 'Original', file }]);
     setOverlayImages([null]);
     setError(null);
@@ -169,14 +186,20 @@ export default function ImageProcessorPage() {
                 </div>
               </div>
 
-              {/* Row 2 — overlay images (only if any exist) */}
+              {/* Row 2 — overlay images composited over the original */}
               {hasOverlays && (
                 <div>
                   <p className="mb-2 text-xs font-medium text-slate-500 uppercase tracking-wide">Overlay</p>
                   <div className="flex gap-6 overflow-x-auto pb-2">
-                    {overlayImages.filter(Boolean).map((url, i) => (
-                      <div key={i} className="flex-shrink-0 w-96">
-                        <ImageFullscreen src={url} alt={`Overlay ${i + 1}`} />
+                    {overlayImages.map((url, i) => url && (
+                      <div key={i} className="flex-shrink-0 w-96 space-y-1">
+                        <p className="text-xs text-slate-400">{processedImages[i]?.label} overlay</p>
+                        <ImageFullscreen
+                          src={processedImages[0].url}
+                          alt={`${processedImages[i]?.label} overlay`}
+                          overlay={url}
+                          overlayOpacity={alpha}
+                        />
                       </div>
                     ))}
                   </div>
