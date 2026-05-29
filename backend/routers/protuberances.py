@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import JSONResponse
+from skimage.filters import threshold_multiotsu
 
 from machine_learning.utils.image_processor import ImageProcessor
 from machine_learning.utils.processing_pipeline import ProcessingPipeline
@@ -110,9 +111,10 @@ async def compute_profile(
     """
     Full protuberance profile pipeline:
       1. Detect sun disk (cx, cy, r)
-      2. Bilateral filter → Otsu binarize
-      3. Count white pixels per 1° wedge in annulus [r, r + r_extension]
-    Returns cx, cy, r, annotated image, binarized image, and 360-entry profile table.
+      2. Bilateral filter
+      3. Multi-Otsu 3 classes on full image  → visualisation only
+      4. Multi-Otsu 3 classes on annular pixels only → binary (middle class = protuberances)
+      5. Count white pixels per 1° wedge in annulus [r, r + r_extension]
     """
     image = decode_upload(file)
     image = ImageProcessor.resize_to_2k(image)
@@ -121,29 +123,49 @@ async def compute_profile(
     gray = ImageProcessor.convert_to_grayscale(image)
     _, _, cx, cy, r = ProcessingPipeline.process_image_through_segmentation_pipeline_v3(gray, False)
 
-    # --- Binarization: bilateral filter → Otsu threshold ---
+    # --- Preprocessing ---
     filtered = ImageProcessor.bilateral_filter(gray)
-    _, binary = cv2.threshold(filtered, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
-    # --- Annular search band ---
+    # --- Annular region geometry ---
     r_inner = float(r)
     r_outer = r_inner + float(r_extension)
+    h, w = filtered.shape[:2]
+    Y, X = np.mgrid[0:h, 0:w]
+    dist = np.sqrt((X.astype(np.float32) - cx) ** 2 + (Y.astype(np.float32) - cy) ** 2)
+    annular_mask = (dist >= r_inner) & (dist <= r_outer)
+
+    # --- Multi-Otsu on FULL image (for visualisation) ---
+    thresholds_full = threshold_multiotsu(filtered, classes=3)
+    regions_full = np.digitize(filtered, bins=thresholds_full)
+    # Color: class 0 = dark gray, class 1 = amber, class 2 = light gray
+    multi_otsu_vis = np.zeros((h, w, 3), dtype=np.uint8)
+    multi_otsu_vis[regions_full == 0] = (60,  60,  60)    # dark  (BGR)
+    multi_otsu_vis[regions_full == 1] = (0,  170, 255)    # amber (BGR)
+    multi_otsu_vis[regions_full == 2] = (220, 220, 220)   # light (BGR)
+    cv2.circle(multi_otsu_vis, (cx, cy), int(round(r_inner)), (0, 255, 100), 2)
+    cv2.circle(multi_otsu_vis, (cx, cy), int(round(r_outer)), (0, 180, 255), 2)
+
+    # --- Binary: Multi-Otsu on ANNULAR pixels only → keep middle class (protuberances) ---
+    # Within the annulus the three classes are:
+    #   0 = darkest in the band  (disk edge or shadowed limb)
+    #   1 = middle               (protuberances – the target)
+    #   2 = brightest in the band (sky background or scattered light)
+    # Applying the threshold on annular pixels only ensures the split is
+    # relative to the local contrast around the limb, not the whole image.
+    annular_pixels = filtered[annular_mask]
+    thresholds_local = threshold_multiotsu(annular_pixels, classes=3)
+    regions_local = np.digitize(filtered, bins=thresholds_local)
+    binary = np.zeros(filtered.shape, dtype=np.uint8)
+    binary[annular_mask & (regions_local == 1)] = 255
 
     # --- Per-degree profile ---
     counts = compute_degree_profile(binary, cx, cy, r_inner, r_outer)
 
-    # --- Visualisations ---
+    # --- Annotated original ---
     annotated = draw_disk_annotation(image, cx, cy, r, r_outer)
 
-    # Binarized image coloured: annulus tinted cyan so user can see the search region
+    # --- Binarized visualisation (black bg, white = protuberance candidates) ---
     binary_bgr = cv2.cvtColor(binary, cv2.COLOR_GRAY2BGR)
-    h, w = binary.shape[:2]
-    Y, X = np.mgrid[0:h, 0:w]
-    dx = X.astype(np.float32) - cx
-    dy = Y.astype(np.float32) - cy
-    dist = np.sqrt(dx * dx + dy * dy)
-    annulus_vis = (dist >= r_inner) & (dist <= r_outer)
-    binary_bgr[annulus_vis & (binary > 0)] = (255, 255, 0)   # cyan-yellow = white pixel in annulus
     cv2.circle(binary_bgr, (cx, cy), int(round(r_inner)), (0, 255, 100), 2)
     cv2.circle(binary_bgr, (cx, cy), int(round(r_outer)), (0, 180, 255), 2)
 
@@ -155,7 +177,8 @@ async def compute_profile(
         "r": float(r),
         "r_inner": r_inner,
         "r_outer": r_outer,
-        "annotated": encode_png_b64(annotated),
-        "binarized": encode_png_b64(binary_bgr),
+        "annotated":   encode_png_b64(annotated),
+        "multi_otsu":  encode_png_b64(multi_otsu_vis),
+        "binarized":   encode_png_b64(binary_bgr),
         "profile": profile,
     })

@@ -146,13 +146,22 @@ export default function ProtuberancesPage() {
               <div>
                 <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Images</p>
                 <div className="flex gap-6 overflow-x-auto pb-2">
-                  <div className="flex-shrink-0 w-96 space-y-1">
+                  <div className="flex-shrink-0 w-80 space-y-1">
                     <p className="text-xs text-slate-400">Detected disk</p>
                     <ImageFullscreen src={result.annotatedUrl} alt="Detected disk" />
                   </div>
-                  <div className="flex-shrink-0 w-96 space-y-1">
-                    <p className="text-xs text-slate-400">Binarized + search annulus</p>
-                    <ImageFullscreen src={result.binarizedUrl} alt="Binarized" />
+                  <div className="flex-shrink-0 w-80 space-y-1">
+                    <p className="text-xs text-slate-400">
+                      Multi-Otsu (full image)
+                      <span className="ml-2 font-mono text-slate-600">
+                        ■ dark &nbsp;■ middle &nbsp;■ bright
+                      </span>
+                    </p>
+                    <ImageFullscreen src={result.multiOtsuUrl} alt="Multi-Otsu segmentation" />
+                  </div>
+                  <div className="flex-shrink-0 w-80 space-y-1">
+                    <p className="text-xs text-slate-400">Protuberance binary (annulus-local Otsu)</p>
+                    <ImageFullscreen src={result.binarizedUrl} alt="Binarized protuberances" />
                   </div>
                 </div>
               </div>

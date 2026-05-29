@@ -64,8 +64,9 @@ export async function computeProfile(image, rExtension = 80) {
     r: json.r,
     rInner: json.r_inner,
     rOuter: json.r_outer,
-    annotatedUrl: b64ToUrl(json.annotated),
-    binarizedUrl: b64ToUrl(json.binarized),
+    annotatedUrl:  b64ToUrl(json.annotated),
+    multiOtsuUrl:  b64ToUrl(json.multi_otsu),
+    binarizedUrl:  b64ToUrl(json.binarized),
     profile: json.profile,   // [{degree, count}, ...]
   };
 }
