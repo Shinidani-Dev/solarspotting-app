@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useState, useEffect } from 'react';
 import SidepanelNavItem from '@/components/ui/SidepanelNavItem';
-import { 
+import {
   House,
   Sun,
   Telescope,
@@ -16,7 +16,8 @@ import {
   Images,
   Waypoints,
   Users,
-  FlaskConical
+  FlaskConical,
+  Circle
 } from 'lucide-react';
 
 export default function AuthenticatedLayout({ children }) {
@@ -46,6 +47,7 @@ export default function AuthenticatedLayout({ children }) {
     { name: 'Processing Pipeline', href: '/classifier', Icon: SquareStack },
     { name: 'Detector', href: '/detector', Icon: ScanSearch },
     { name: 'Image Processor', href: '/image-processor', Icon: FlaskConical },
+    { name: 'Protuberances', href: '/protuberances', Icon: Circle },
   ];
 
   // Items nur für Labeler + Admin
