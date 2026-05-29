@@ -14,59 +14,61 @@ function b64ToUrl(b64) {
   return URL.createObjectURL(new Blob([arr], { type: 'image/png' }));
 }
 
+/** Fast circle detection — returns { cx, cy, r } in 2048×2048 server space. */
 export async function detectCircle(image) {
   const form = new FormData();
   form.append('file', image, 'image.png');
 
-  const response = await fetch(`${BASE_URL}/detect-circle`, {
+  const res = await fetch(`${BASE_URL}/detect-circle`, {
     method: 'POST',
     headers: authHeaders(),
     body: form,
   });
-
-  if (!response.ok) throw new Error(`Server error ${response.status}`);
-  const json = await response.json();
-
-  return {
-    cx: json.cx,
-    cy: json.cy,
-    r: json.r,
-    annotatedUrl: b64ToUrl(json.annotated),
-  };
+  if (!res.ok) throw new Error(`Server error ${res.status}`);
+  return res.json();  // { cx, cy, r }
 }
 
 /**
- * Full protuberance profile:
- *   - detects sun disk (cx, cy, r)
- *   - bilateral filter + Otsu binarization
- *   - counts white pixels per 1° wedge in annulus [r, r + rExtension]
+ * Full protuberance profile.
  *
- * Returns { cx, cy, r, rInner, rOuter, annotatedUrl, binarizedUrl, profile }
- * where profile is an array of 360 objects: { degree: 1..360, count: number }
+ * cx / cy / rx / ry are optional manual overrides in 2048×2048 server space.
+ * rx / ry are the ellipse semi-axes (use equal values for a circle).
+ *
+ * Returns { cx, cy, rx, ry, rxOut, ryOut,
+ *           annotatedUrl, multiOtsuUrl, binarizedUrl, profile }.
  */
-export async function computeProfile(image, rExtension = 80) {
+export async function computeProfile(
+  image,
+  rExtension = 80,
+  cx = null, cy = null,
+  rx = null, ry = null,
+) {
   const form = new FormData();
   form.append('file', image, 'image.png');
   form.append('r_extension', String(rExtension));
+  if (cx !== null) form.append('cx', String(cx));
+  if (cy !== null) form.append('cy', String(cy));
+  if (rx !== null) form.append('rx', String(rx));
+  if (ry !== null) form.append('ry', String(ry));
 
-  const response = await fetch(`${BASE_URL}/profile`, {
+  const res = await fetch(`${BASE_URL}/profile`, {
     method: 'POST',
     headers: authHeaders(),
     body: form,
   });
-
-  if (!response.ok) throw new Error(`Server error ${response.status}`);
-  const json = await response.json();
+  if (!res.ok) throw new Error(`Server error ${res.status}`);
+  const json = await res.json();
 
   return {
-    cx: json.cx,
-    cy: json.cy,
-    r: json.r,
-    rInner: json.r_inner,
-    rOuter: json.r_outer,
-    annotatedUrl:  b64ToUrl(json.annotated),
-    multiOtsuUrl:  b64ToUrl(json.multi_otsu),
-    binarizedUrl:  b64ToUrl(json.binarized),
-    profile: json.profile,   // [{degree, count}, ...]
+    cx:      json.cx,
+    cy:      json.cy,
+    rx:      json.rx,
+    ry:      json.ry,
+    rxOut:   json.rx_out,
+    ryOut:   json.ry_out,
+    annotatedUrl: b64ToUrl(json.annotated),
+    multiOtsuUrl: b64ToUrl(json.multi_otsu),
+    binarizedUrl: b64ToUrl(json.binarized),
+    profile:      json.profile,  // [{degree, count}, ...]
   };
 }
